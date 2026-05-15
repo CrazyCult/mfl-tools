@@ -169,21 +169,23 @@ var FAM={
 var PEN={P:0,S:-1,FF:-5,SF:-8,UF:-20};
 var RANK={P:4,S:3,FF:2,SF:1,UF:0};
 
-// Score d'un joueur à l'un de ses postes natifs
-function scoreAtPos(pl,nativePos){
-  var m=pl.metadata||{},w=W[nativePos];
-  if(!w)return 0;
-  var positions=m.positions||[];
-  var pm0=TOM[positions[0]]||positions[0];
-  var pmt=TOM[nativePos]||nativePos;
-  var fam='UF';
-  if(pm0===pmt)fam='P';
-  else{
-    var allPm=positions.map(function(p){return TOM[p]||p;});
-    if(allPm.indexOf(pmt)>=0)fam='S';
-    else{var ff=FAM[pm0];if(ff&&ff[pmt])fam=ff[pmt];}
-  }
-  var pen=PEN[fam];if(pen===undefined)pen=-20;
+// Logique EXACTE de players.js - getPositionFamiliarity
+function getFam(pl,slotPos){
+  var positions=pl.metadata&&pl.metadata.positions||[];
+  var convPos=positions.map(function(p){return TOM[p]||p;});
+  var convTarget=TOM[slotPos]||slotPos;
+  if(convPos[0]===convTarget)return 'P';
+  if(convPos.indexOf(convTarget)>=0)return 'S';
+  var primary=convPos[0];
+  if(primary&&FAM[primary]&&FAM[primary][convTarget])return FAM[primary][convTarget];
+  return 'UF';
+}
+
+// Score DIRECT au slot (= calculatePositionRating de players.js)
+function calcScore(pl,slotPos){
+  var m=pl.metadata||{},w=W[slotPos];
+  if(!w)return m.overall||50;
+  var pen=PEN[getFam(pl,slotPos)];if(pen===undefined)pen=-20;
   var adj=function(s){return Math.max(0,(s||0)+pen);};
   var raw=adj(m.pace)*w.PAC+adj(m.shooting)*w.SHO+adj(m.passing)*w.PAS+
           adj(m.dribbling)*w.DRI+adj(m.defense)*w.DEF+adj(m.physical)*w.PHY+
@@ -191,40 +193,18 @@ function scoreAtPos(pl,nativePos){
   return Math.max(10,Math.min(99,Math.round(raw*Math.max(0.7,(pl.energy||MAX_E)/MAX_E))));
 }
 
-// Meilleur score d'un joueur pour un slot :
-// parcourt ses postes natifs, garde le meilleur compatible avec le slot
+// Affichage : poste natif principal + score au slot
 function bestScore(pl,slotPos){
   var positions=pl.metadata&&pl.metadata.positions||[];
-  if(!positions.length)return{sc:0,pos:slotPos,fam:'UF'};
-  var tm=TOM[slotPos]||slotPos;
-  var best={sc:-1,pos:positions[0],fam:'UF'};
-  for(var i=0;i<positions.length;i++){
-    var nPos=positions[i];
-    var pm=TOM[nPos]||nPos;
-    // Familiarité de ce poste natif avec le slot
-    var fam='UF';
-    if(pm===tm){
-      fam=(i===0)?'P':'S'; // 1er poste = primary, autres = secondary
-    } else {
-      var famRow=FAM[pm];
-      if(famRow&&famRow[tm])fam=famRow[tm];
-    }
-    if(fam==='UF')continue; // incompatible → skip
-    var sc=scoreAtPos(pl,nPos);
-    // Compare: d'abord familiarité, puis score
-    if((RANK[fam]||0)+(sc/1000)>(RANK[best.fam]||0)+(best.sc/1000)){
-      best={sc:sc,pos:nPos,fam:fam};
-    }
-  }
-  if(best.sc===-1)return{sc:0,pos:positions[0],fam:'UF'};
-  return best;
+  return{sc:calcScore(pl,slotPos),pos:positions[0]||slotPos,fam:getFam(pl,slotPos)};
 }
 
+
+
 function sk(pl,slotPos,young){
-  var b=bestScore(pl,slotPos);
-  if(b.sc===0)return 0;
+  var sc=calcScore(pl,slotPos);
   var m=pl.metadata||{},age=m.age||25,h=m.height||175;
-  return b.sc*10000+(young?(40-age):age)*10+(TALL[slotPos]?Math.round(h/10):0);
+  return sc*10000+(young?(40-age):age)*10+(TALL[slotPos]?Math.round(h/10):0);
 }
 
 function doAssign(players,positions){
