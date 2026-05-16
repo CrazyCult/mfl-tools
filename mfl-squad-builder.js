@@ -156,14 +156,14 @@ function sortKey(pl,slot,young){
 }
 
 // ── Algorithme d'assignation ─────────────────────────────────
-// Stratégie en 3 passes:
-// Pass 1: Pour chaque joueur, trouve son slot PRIMARY préféré (où il a le meilleur score)
-//         Si plusieurs joueurs visent le même slot, garde celui avec le meilleur score
-// Pass 2: Idem pour SECONDARY (positions secondaires natives du joueur)
-// Pass 3: Remplit les slots restants avec les meilleurs candidats encore disponibles (FF/SF)
+// Logique : chaque joueur est candidat UNIQUEMENT sur ses postes natifs (positions[]).
+// On calcule son score à chacun de ses postes natifs et on prend la meilleure
+// affectation globale via matching glouton.
+// Si un slot reste vide (aucun joueur natif disponible), on le comble avec
+// le meilleur candidat compatible (FAIRLY_FAMILIAR, etc.)
 function doAssign(players,positions){
   var n=positions.length,m=players.length;
-  // Matrice des scores
+  // Pré-calcule la matrice score[si][pi]
   var score=[];
   for(var si=0;si<n;si++){
     score[si]=[];
@@ -171,49 +171,52 @@ function doAssign(players,positions){
   }
   var asgn=new Array(n).fill(-1),used=new Set(),done=new Array(n).fill(false);
 
-  // Pour chaque joueur, liste ses slots compatibles à un niveau donné
-  function slotsAtLevel(pi,levels){
+  // Pour chaque joueur: liste de ses (slot, score) là où il a PRIMARY ou SECONDARY
+  // = uniquement ses postes natifs (positions[] convertis)
+  function nativeSlotsFor(pi){
     var out=[];
     for(var si=0;si<n;si++){
       if(done[si])continue;
       var fam=getFam(players[pi],positions[si]);
-      if(levels.indexOf(fam)>=0)out.push({si:si,sc:score[si][pi]});
+      if(fam==='PRIMARY'||fam==='SECONDARY')out.push({si:si,sc:score[si][pi],fam:fam});
     }
-    return out.sort(function(a,b){return b.sc-a.sc;});
+    return out.sort(function(a,b){return b.sc-a.sc;}); // meilleur score en premier
   }
 
-  // Passes 1 & 2: par niveau de familiarité (PRIMARY puis SECONDARY)
-  ['PRIMARY','SECONDARY'].forEach(function(level){
-    var changed=true;
-    while(changed){
-      changed=false;
-      // Pour chaque joueur non utilisé: trouve son meilleur slot à ce niveau
-      var bids=[]; // {pi, si, sc}
-      for(var pi=0;pi<m;pi++){
-        if(used.has(pi))continue;
-        var avail=slotsAtLevel(pi,[level]);
-        if(avail.length>0)bids.push({pi:pi,si:avail[0].si,sc:avail[0].sc});
-      }
-      // Pour chaque slot, prend le joueur avec le meilleur score
-      // (résolution des conflits: plusieurs joueurs visent le même slot)
-      var bySlot={};
-      bids.forEach(function(b){
-        if(!bySlot[b.si]||bySlot[b.si].sc<b.sc)bySlot[b.si]=b;
-      });
-      // Assigne
-      Object.keys(bySlot).forEach(function(siStr){
-        var b=bySlot[siStr];
-        if(done[b.si]||used.has(b.pi))return;
-        asgn[b.si]=b.pi;used.add(b.pi);done[b.si]=true;changed=true;
-      });
+  // Boucle: chaque joueur enchère sur son meilleur slot natif disponible
+  // À chaque slot, on garde le joueur avec le meilleur score
+  // Les joueurs perdants retentent au tour suivant sur leur 2e meilleur slot natif
+  var maxIter=n*m;
+  for(var iter=0;iter<maxIter;iter++){
+    var bids=[]; // {pi, si, sc, fam}
+    for(var pi=0;pi<m;pi++){
+      if(used.has(pi))continue;
+      var slots=nativeSlotsFor(pi);
+      if(slots.length>0)bids.push({pi:pi,si:slots[0].si,sc:slots[0].sc,fam:slots[0].fam});
     }
-  });
+    if(bids.length===0)break;
+    // Pour chaque slot, choisit le joueur avec le meilleur score
+    // (puis familiarité PRIMARY > SECONDARY en cas d'égalité)
+    var bySlot={};
+    bids.forEach(function(b){
+      var cur=bySlot[b.si];
+      if(!cur)bySlot[b.si]=b;
+      else if(b.sc>cur.sc)bySlot[b.si]=b;
+      else if(b.sc===cur.sc&&b.fam==='PRIMARY'&&cur.fam!=='PRIMARY')bySlot[b.si]=b;
+    });
+    var assigned=false;
+    Object.keys(bySlot).forEach(function(siStr){
+      var b=bySlot[siStr];
+      if(done[b.si]||used.has(b.pi))return;
+      asgn[b.si]=b.pi;used.add(b.pi);done[b.si]=true;assigned=true;
+    });
+    if(!assigned)break;
+  }
 
-  // Pass 3: comble les slots restants avec les meilleurs candidats restants
-  // (peu importe la familiarité, prend le meilleur score disponible)
-  // Mais on assigne en commençant par le slot avec le plus grand regret
+  // Slots restants (aucun candidat natif): comble avec le meilleur disponible
+  // (FAIRLY_FAMILIAR, SOMEWHAT_FAMILIAR, voire UNFAMILIAR si pas le choix)
   while(true){
-    var bestSi=-1,bestRegret=-1;
+    var openSi=-1,bestRegret=-1;
     for(var si=0;si<n;si++){
       if(done[si])continue;
       var top1=-1,top2=-1;
@@ -224,15 +227,14 @@ function doAssign(players,positions){
       }
       if(top1<0)continue;
       var regret=top1-Math.max(0,top2);
-      if(regret>bestRegret){bestRegret=regret;bestSi=si;}
+      if(regret>bestRegret){bestRegret=regret;openSi=si;}
     }
-    if(bestSi===-1)break;
-    // Assigne le meilleur joueur disponible pour ce slot
-    var slot=positions[bestSi];
+    if(openSi===-1)break;
+    var slot=positions[openSi];
     var bestPi=-1,bestSc=-1,bestFr=-1,bestAge=999;
     for(var pi=0;pi<m;pi++){
       if(used.has(pi))continue;
-      var sc=score[bestSi][pi];
+      var sc=score[openSi][pi];
       var fr=FR[getFam(players[pi],slot)]||0;
       var age=(players[pi].metadata&&players[pi].metadata.age)||25;
       var better=false;
@@ -241,8 +243,8 @@ function doAssign(players,positions){
       else if(sc===bestSc&&fr===bestFr&&age<bestAge)better=true;
       if(better){bestSc=sc;bestFr=fr;bestAge=age;bestPi=pi;}
     }
-    if(bestPi>=0){asgn[bestSi]=bestPi;used.add(bestPi);}
-    done[bestSi]=true;
+    if(bestPi>=0){asgn[openSi]=bestPi;used.add(bestPi);}
+    done[openSi]=true;
   }
 
   return asgn.map(function(pi,si){
