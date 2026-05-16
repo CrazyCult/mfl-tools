@@ -156,11 +156,9 @@ function sortKey(pl,slot,young){
 }
 
 // ── Algorithme d'assignation ─────────────────────────────────
-// Logique : chaque joueur est candidat UNIQUEMENT sur ses postes natifs (positions[]).
-// On calcule son score à chacun de ses postes natifs et on prend la meilleure
-// affectation globale via matching glouton.
-// Si un slot reste vide (aucun joueur natif disponible), on le comble avec
-// le meilleur candidat compatible (FAIRLY_FAMILIAR, etc.)
+// Logique stricte : un joueur est candidat UNIQUEMENT sur ses postes natifs
+// (positions[] de l'API). Si aucun joueur natif n'est dispo pour un slot,
+// le slot reste VIDE — on ne met JAMAIS un joueur hors de ses postes.
 function doAssign(players,positions){
   var n=positions.length,m=players.length;
   // Pré-calcule la matrice score[si][pi]
@@ -171,8 +169,7 @@ function doAssign(players,positions){
   }
   var asgn=new Array(n).fill(-1),used=new Set(),done=new Array(n).fill(false);
 
-  // Pour chaque joueur: liste de ses (slot, score) là où il a PRIMARY ou SECONDARY
-  // = uniquement ses postes natifs (positions[] convertis)
+  // Postes natifs uniquement (PRIMARY ou SECONDARY)
   function nativeSlotsFor(pi){
     var out=[];
     for(var si=0;si<n;si++){
@@ -180,23 +177,20 @@ function doAssign(players,positions){
       var fam=getFam(players[pi],positions[si]);
       if(fam==='PRIMARY'||fam==='SECONDARY')out.push({si:si,sc:score[si][pi],fam:fam});
     }
-    return out.sort(function(a,b){return b.sc-a.sc;}); // meilleur score en premier
+    return out.sort(function(a,b){return b.sc-a.sc;});
   }
 
-  // Boucle: chaque joueur enchère sur son meilleur slot natif disponible
-  // À chaque slot, on garde le joueur avec le meilleur score
-  // Les joueurs perdants retentent au tour suivant sur leur 2e meilleur slot natif
+  // Matching itératif : chaque joueur enchère sur son meilleur slot natif
   var maxIter=n*m;
   for(var iter=0;iter<maxIter;iter++){
-    var bids=[]; // {pi, si, sc, fam}
+    var bids=[];
     for(var pi=0;pi<m;pi++){
       if(used.has(pi))continue;
       var slots=nativeSlotsFor(pi);
       if(slots.length>0)bids.push({pi:pi,si:slots[0].si,sc:slots[0].sc,fam:slots[0].fam});
     }
     if(bids.length===0)break;
-    // Pour chaque slot, choisit le joueur avec le meilleur score
-    // (puis familiarité PRIMARY > SECONDARY en cas d'égalité)
+    // Pour chaque slot, conserve l'enchère gagnante (meilleur score, PRIMARY > SECONDARY à égalité)
     var bySlot={};
     bids.forEach(function(b){
       var cur=bySlot[b.si];
@@ -213,46 +207,32 @@ function doAssign(players,positions){
     if(!assigned)break;
   }
 
-  // Slots restants (aucun candidat natif): comble avec le meilleur disponible
-  // (FAIRLY_FAMILIAR, SOMEWHAT_FAMILIAR, voire UNFAMILIAR si pas le choix)
-  while(true){
-    var openSi=-1,bestRegret=-1;
-    for(var si=0;si<n;si++){
-      if(done[si])continue;
-      var top1=-1,top2=-1;
-      for(var pi=0;pi<m;pi++){
-        if(used.has(pi))continue;
-        var s=score[si][pi];
-        if(s>top1){top2=top1;top1=s;}else if(s>top2)top2=s;
-      }
-      if(top1<0)continue;
-      var regret=top1-Math.max(0,top2);
-      if(regret>bestRegret){bestRegret=regret;openSi=si;}
-    }
-    if(openSi===-1)break;
-    var slot=positions[openSi];
-    var bestPi=-1,bestSc=-1,bestFr=-1,bestAge=999;
-    for(var pi=0;pi<m;pi++){
-      if(used.has(pi))continue;
-      var sc=score[openSi][pi];
-      var fr=FR[getFam(players[pi],slot)]||0;
-      var age=(players[pi].metadata&&players[pi].metadata.age)||25;
-      var better=false;
-      if(sc>bestSc)better=true;
-      else if(sc===bestSc&&fr>bestFr)better=true;
-      else if(sc===bestSc&&fr===bestFr&&age<bestAge)better=true;
-      if(better){bestSc=sc;bestFr=fr;bestAge=age;bestPi=pi;}
-    }
-    if(bestPi>=0){asgn[openSi]=bestPi;used.add(bestPi);}
-    done[openSi]=true;
-  }
-
+  // Pas de fallback : les slots sans candidat natif restent VIDES (null)
   return asgn.map(function(pi,si){
     if(pi===-1)return null;
     var p=players[pi],slotPos=positions[si];
     var pos=p.metadata&&p.metadata.positions||[];
     return{player:p,pos:pos[0]||slotPos,slotPos:slotPos,sc:score[si][pi],fam:getFam(p,slotPos)};
   });
+}
+
+// ── Suggestion de formation ──────────────────────────────────
+// Compte les joueurs par poste natif principal, puis trouve la formation
+// qui maximise la couverture native (PRIMARY/SECONDARY uniquement)
+function suggestFormation(players){
+  var best={name:null,score:-1,filled:0};
+  Object.keys(FORM).forEach(function(fname){
+    var positions=FORM[fname];
+    var assignment=doAssign(players,positions);
+    var filled=assignment.filter(function(x){return x!==null;}).length;
+    // Score total: somme des scores des joueurs assignés
+    var totalScore=assignment.reduce(function(acc,x){return acc+(x?x.sc:0);},0);
+    // Critère: d'abord nb de slots remplis, puis score total
+    if(filled>best.filled||(filled===best.filled&&totalScore>best.score)){
+      best={name:fname,score:totalScore,filled:filled};
+    }
+  });
+  return best;
 }
 
 // ── Remplaçants ──────────────────────────────────────────────
@@ -396,6 +376,7 @@ pnl.innerHTML=
   '<label style="display:flex;align-items:center;gap:4px;font-size:10px;color:#888;cursor:pointer"><input type="checkbox" id="mfl-excl-ret" style="accent-color:#e2b714"> ⚠️ret</label>'+
   '<label style="display:flex;align-items:center;gap:4px;font-size:10px;color:#888;cursor:pointer"><input type="checkbox" id="mfl-excl-con" checked style="accent-color:#e2b714"> 📋contrat</label>'+
   '<button class="btn bbl" onclick="mflGen()">▶ Générer</button>'+
+  '<button class="btn bbl" onclick="mflSuggest()" title="Trouve la meilleure formation pour ce wallet">🎯 Suggérer</button>'+
   '<button class="btn bgr" id="mfl-all-btn" style="display:none" onclick="mflSignAll()">✅ Signer tout</button>'+
   '<button class="btn bgy" onclick="document.getElementById(\'mflsb\').remove()">✕</button>'+
   '</div>'+
@@ -452,20 +433,40 @@ window.mflGen=function(){
       if(['MOC','CAM','AT','AG','LW','AD','RW'].indexOf(pos)>=0)return'🎯 Offensifs';
       return'⚡ Attaquants';
     }
+    // Construit la liste avec les VIDES inclus, dans l'ordre de la formation
     var allSlots=[];
-    starters.filter(Boolean).sort(function(a,b){return PO.indexOf(a.slotPos)-PO.indexOf(b.slotPos);}).forEach(function(s){allSlots.push(Object.assign({},s,{role:'Tit.'}));});
+    starters.forEach(function(s,i){
+      if(s){
+        allSlots.push(Object.assign({},s,{role:'Tit.',_order:PO.indexOf(s.slotPos)}));
+      }else{
+        // Slot vide : affiche le poste demandé sans joueur
+        allSlots.push({_empty:true,slotPos:positions[i],_order:PO.indexOf(positions[i])});
+      }
+    });
+    allSlots.sort(function(a,b){return a._order-b._order;});
     Object.values(bups).forEach(function(bb){bb.forEach(function(b){allSlots.push(Object.assign({},b,{role:'Rem.'}));});});
     var groups={};
-    allSlots.forEach(function(s){var sp=s.posKey||s.slotPos.split('/')[0];var g=grpOf(sp);if(!groups[g])groups[g]=[];groups[g].push(s);});
+    allSlots.forEach(function(s){var sp=s._empty?s.slotPos:(s.posKey||s.slotPos.split('/')[0]);var g=grpOf(sp);if(!groups[g])groups[g]=[];groups[g].push(s);});
 
     var p=gP();
     var cs=p.clauses.length?' / min '+p.clauses[0].nbMatches+'m pén.'+p.clauses[0].revenueSharePenalty/100+'%':'';
+    var emptyCount=allSlots.filter(function(s){return s._empty;}).length;
     var html='<div class="pr" style="font-size:9px;color:#333;padding-top:4px"><span>Poste</span><span>Slot</span><span>Joueur</span><span>Âge</span><span>Tail.</span><span>OVR</span><span>Sc.</span><span></span></div>';
-    html+='<div style="padding:3px 12px 5px;font-size:10px;color:#555;border-bottom:1px solid #131325">'+p.revenueShare/100+'% rev / '+p.nbSeasons+' saison(s) / exp.'+p.expirationDelay+'j'+(p.autoRenewByDefault?' / ♻️':'')+cs+'</div>';
+    html+='<div style="padding:3px 12px 5px;font-size:10px;color:#555;border-bottom:1px solid #131325">'+p.revenueShare/100+'% rev / '+p.nbSeasons+' saison(s) / exp.'+p.expirationDelay+'j'+(p.autoRenewByDefault?' / ♻️':'')+cs+(emptyCount>0?' / ⚠️ '+emptyCount+' slot(s) vide(s) - pas de joueur natif':'')+'</div>';
 
     Object.keys(groups).forEach(function(grp){
       html+='<div class="mg"><div class="mg-t">'+grp+'</div></div>';
       groups[grp].forEach(function(sl){
+        // Slot vide
+        if(sl._empty){
+          html+='<div class="pr" style="opacity:.4;background:#1a0a0a">'+
+            '<span class="pp UNFAMILIAR">—</span>'+
+            '<span class="pslot">'+sl.slotPos+'</span>'+
+            '<span class="pn" style="color:#ff5555;font-style:italic">⚠️ Pas de joueur natif disponible</span>'+
+            '<span></span><span></span><span></span><span></span><span></span>'+
+            '</div>';
+          return;
+        }
         var m=sl.player.metadata||{},ovr=m.overall||0;
         var nm=(m.firstName&&m.firstName[0]||'')+'. '+(m.lastName||'?');
         var age=m.age||'?',h=m.height||'?';
@@ -494,6 +495,60 @@ window.mflGen=function(){
     }
     bd.innerHTML=html;
     document.getElementById('mfl-all-btn').style.display='';
+  }).catch(function(e){document.getElementById('mfl-st').textContent='Erreur: '+e.message;console.error('[MFL]',e);});
+};
+
+// Suggère la meilleure formation pour le wallet actuel
+window.mflSuggest=function(){
+  var ovrMin=parseInt(document.getElementById('mfl-omin').value)||1;
+  var ovrMax=parseInt(document.getElementById('mfl-omax').value)||99;
+  var exclRet=document.getElementById('mfl-excl-ret').checked;
+  var exclCon=document.getElementById('mfl-excl-con').checked;
+  var wallet=getW();
+  if(!wallet){document.getElementById('mfl-st').textContent='Wallet introuvable';return;}
+  var clubId=window._MC;
+  document.getElementById('mfl-st').textContent='🎯 Recherche meilleure formation...';
+  Promise.all([
+    _of(API+'/players?ownerWalletAddress='+wallet+'&limit=500'),
+    clubId?_of(API+'/contracts?period=currentSeason&clubId='+clubId):Promise.resolve({json:function(){return [];}})
+  ]).then(function(rr){return Promise.all(rr.map(function(r){return r.json();}));})
+  .then(function(dd){
+    var allP=Array.isArray(dd[0])?dd[0]:dd[0].items||[];
+    var existing=dd[1].items||dd[1]||[];
+    var signedIds=new Set(existing.map(function(c){return typeof c.player==='object'?c.player&&c.player.id:c.player;}));
+    var avail=allP.filter(function(p){
+      var o=p.metadata&&p.metadata.overall||0;
+      if(o<ovrMin||o>ovrMax)return false;
+      if(exclCon&&p.activeContract)return false;
+      if(exclRet&&p.metadata&&p.metadata.retirementYears!==undefined&&p.metadata.retirementYears<=1)return false;
+      return true;
+    });
+    // Teste toutes les formations
+    var results=[];
+    Object.keys(FORM).forEach(function(fname){
+      var assignment=doAssign(avail,FORM[fname]);
+      var filled=assignment.filter(function(x){return x!==null;}).length;
+      var total=assignment.reduce(function(acc,x){return acc+(x?x.sc:0);},0);
+      var avg=filled>0?Math.round(total/filled):0;
+      results.push({name:fname,filled:filled,total:total,avg:avg});
+    });
+    results.sort(function(a,b){
+      if(b.filled!==a.filled)return b.filled-a.filled;
+      return b.total-a.total;
+    });
+    var top5=results.slice(0,5);
+    var best=top5[0];
+    // Sélectionne la meilleure dans le dropdown et génère
+    var sel=document.getElementById('mfl-form');
+    for(var i=0;i<sel.options.length;i++){
+      if(sel.options[i].value===best.name||sel.options[i].text===best.name){
+        sel.selectedIndex=i;break;
+      }
+    }
+    var msg='🎯 Top 5 formations: ';
+    msg+=top5.map(function(r){return r.name+'('+r.filled+'/11,~'+r.avg+')';}).join(' / ');
+    document.getElementById('mfl-st').textContent=msg;
+    window.mflGen();
   }).catch(function(e){document.getElementById('mfl-st').textContent='Erreur: '+e.message;console.error('[MFL]',e);});
 };
 
