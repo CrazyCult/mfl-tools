@@ -1,8 +1,7 @@
-// MFL Squad Builder v2 — github.com/TON_USER/mfl-tools
 (function(){
 'use strict';
 var API='https://z519wdyajg.execute-api.us-east-1.amazonaws.com/prod';
-var MAX_E=10000;
+var MAX_E=100; // Corrigé de 10000 à 100 pour correspondre aux pourcentages d'énergie de l'API
 var TALL_POS={GK:1,G:1,CB:1,DC:1,ST:1,BU:1,LWB:1,DLG:1,RWB:1,DLD:1};
 
 // Club ID depuis URL
@@ -81,27 +80,26 @@ var SLOTS={
   '5-4-1':{GK:2,LWB:2,CB:4,RWB:2,LM:2,CDM:2,RM:2,CAM:2,ST:2}
 };
 
-// ── Calcul rating — IDENTIQUE à players.js ───────────────────
 var W={
-  G:{PAC:0,SHO:0,PAS:0,DRI:0,DEF:0,PHY:0,GK:1},GK:{PAC:0,SHO:0,PAS:0,DRI:0,DEF:0,PHY:0,GK:1},
-  DC:{PAC:.02,SHO:0,PAS:.05,DRI:.09,DEF:.64,PHY:.20,GK:0},CB:{PAC:.02,SHO:0,PAS:.05,DRI:.09,DEF:.64,PHY:.20,GK:0},
-  DG:{PAC:.10,SHO:0,PAS:.19,DRI:.17,DEF:.44,PHY:.10,GK:0},LB:{PAC:.10,SHO:0,PAS:.19,DRI:.17,DEF:.44,PHY:.10,GK:0},
-  DD:{PAC:.10,SHO:0,PAS:.19,DRI:.17,DEF:.44,PHY:.10,GK:0},RB:{PAC:.10,SHO:0,PAS:.19,DRI:.17,DEF:.44,PHY:.10,GK:0},
-  DLG:{PAC:.10,SHO:0,PAS:.19,DRI:.17,DEF:.44,PHY:.10,GK:0},LWB:{PAC:.10,SHO:0,PAS:.19,DRI:.17,DEF:.44,PHY:.10,GK:0},
-  DLD:{PAC:.10,SHO:0,PAS:.19,DRI:.17,DEF:.44,PHY:.10,GK:0},RWB:{PAC:.10,SHO:0,PAS:.19,DRI:.17,DEF:.44,PHY:.10,GK:0},
-  MDC:{PAC:0,SHO:0,PAS:.28,DRI:.17,DEF:.40,PHY:.15,GK:0},CDM:{PAC:0,SHO:0,PAS:.28,DRI:.17,DEF:.40,PHY:.15,GK:0},
-  MC:{PAC:0,SHO:.12,PAS:.43,DRI:.29,DEF:.10,PHY:.06,GK:0},CM:{PAC:0,SHO:.12,PAS:.43,DRI:.29,DEF:.10,PHY:.06,GK:0},
-  MG:{PAC:0,SHO:.12,PAS:.43,DRI:.29,DEF:.10,PHY:.06,GK:0},LM:{PAC:0,SHO:.12,PAS:.43,DRI:.29,DEF:.10,PHY:.06,GK:0},
-  MD:{PAC:0,SHO:.12,PAS:.43,DRI:.29,DEF:.10,PHY:.06,GK:0},RM:{PAC:0,SHO:.12,PAS:.43,DRI:.29,DEF:.10,PHY:.06,GK:0},
-  MOC:{PAC:.07,SHO:.21,PAS:.34,DRI:.38,DEF:0,PHY:0,GK:0},CAM:{PAC:.07,SHO:.21,PAS:.34,DRI:.38,DEF:0,PHY:0,GK:0},AT:{PAC:.07,SHO:.21,PAS:.34,DRI:.38,DEF:0,PHY:0,GK:0},
-  AG:{PAC:.13,SHO:.23,PAS:.24,DRI:.40,DEF:0,PHY:0,GK:0},LW:{PAC:.13,SHO:.23,PAS:.24,DRI:.40,DEF:0,PHY:0,GK:0},
-  AD:{PAC:.13,SHO:.23,PAS:.24,DRI:.40,DEF:0,PHY:0,GK:0},RW:{PAC:.13,SHO:.23,PAS:.24,DRI:.40,DEF:0,PHY:0,GK:0},
-  BU:{PAC:.10,SHO:.46,PAS:.10,DRI:.29,DEF:0,PHY:.05,GK:0},ST:{PAC:.10,SHO:.46,PAS:.10,DRI:.29,DEF:0,PHY:.05,GK:0},
+  GK:{PAC:0,SHO:0,PAS:0,DRI:0,DEF:0,PHY:0,GK:1},
+  CB:{PAC:.02,SHO:0,PAS:.05,DRI:.09,DEF:.64,PHY:.20,GK:0},
+  LB:{PAC:.10,SHO:0,PAS:.19,DRI:.17,DEF:.44,PHY:.10,GK:0},
+  RB:{PAC:.10,SHO:0,PAS:.19,DRI:.17,DEF:.44,PHY:.10,GK:0},
+  LWB:{PAC:.10,SHO:0,PAS:.19,DRI:.17,DEF:.44,PHY:.10,GK:0},
+  RWB:{PAC:.10,SHO:0,PAS:.19,DRI:.17,DEF:.44,PHY:.10,GK:0},
+  CDM:{PAC:0,SHO:0,PAS:.28,DRI:.17,DEF:.40,PHY:.15,GK:0},
+  CM:{PAC:0,SHO:.12,PAS:.43,DRI:.29,DEF:.10,PHY:.06,GK:0},
+  LM:{PAC:0,SHO:.12,PAS:.43,DRI:.29,DEF:.10,PHY:.06,GK:0},
+  RM:{PAC:0,SHO:.12,PAS:.43,DRI:.29,DEF:.10,PHY:.06,GK:0},
+  CAM:{PAC:.07,SHO:.21,PAS:.34,DRI:.38,DEF:0,PHY:0,GK:0},
+  LW:{PAC:.13,SHO:.23,PAS:.24,DRI:.40,DEF:0,PHY:0,GK:0},
+  RW:{PAC:.13,SHO:.23,PAS:.24,DRI:.40,DEF:0,PHY:0,GK:0},
+  ST:{PAC:.10,SHO:.46,PAS:.10,DRI:.29,DEF:0,PHY:.05,GK:0},
   CF:{PAC:.13,SHO:.23,PAS:.24,DRI:.40,DEF:0,PHY:0,GK:0}
 };
-// convertApiPositionToMatrix de players.js
+
 var TOM={G:'GK',GK:'GK',DC:'CB',CB:'CB',DG:'LB',LB:'LB',LWB:'LB',DLG:'LB',DD:'RB',RB:'RB',RWB:'RB',DLD:'RB',MDC:'CDM',CDM:'CDM',MC:'CM',CM:'CM',MG:'LM',LM:'LM',MD:'RM',RM:'RM',MOC:'CAM',CAM:'CAM',AG:'LW',LW:'LW',AD:'RW',RW:'RW',BU:'ST',ST:'ST',AT:'CF',CF:'CF'};
-// POSITION_FAMILIARITY de constants.js
+
 var FAM={
   GK:{GK:'PRIMARY'},
   CB:{CB:'PRIMARY',LB:'FAIRLY_FAMILIAR',RB:'FAIRLY_FAMILIAR',CDM:'FAIRLY_FAMILIAR'},
@@ -119,11 +117,9 @@ var FAM={
   CF:{CF:'PRIMARY',ST:'SECONDARY',CAM:'FAIRLY_FAMILIAR',LW:'FAIRLY_FAMILIAR',RW:'FAIRLY_FAMILIAR'},
   ST:{ST:'PRIMARY',CF:'SECONDARY',LW:'SOMEWHAT_FAMILIAR',RW:'SOMEWHAT_FAMILIAR'}
 };
-// FAMILIARITY_PENALTIES de constants.js
 var PEN={PRIMARY:0,SECONDARY:-1,FAIRLY_FAMILIAR:-5,SOMEWHAT_FAMILIAR:-8,UNFAMILIAR:-20};
 var FR={PRIMARY:4,SECONDARY:3,FAIRLY_FAMILIAR:2,SOMEWHAT_FAMILIAR:1,UNFAMILIAR:0};
 
-// getPositionFamiliarity — identique à players.js
 function getFam(pl,slot){
   var pos=pl.metadata&&pl.metadata.positions||[];
   var conv=pos.map(function(p){return TOM[p]||p;});
@@ -135,9 +131,9 @@ function getFam(pl,slot){
   return'UNFAMILIAR';
 }
 
-// calculatePositionRating — identique à players.js
 function calcScore(pl,slot){
-  var m=pl.metadata||{},w=W[slot];
+  var normSlot = TOM[slot] || slot; // Force l'alignement matrice/traduction
+  var m=pl.metadata||{},w=W[normSlot];
   if(!w)return m.overall||50;
   var pen=PEN[getFam(pl,slot)];if(pen===undefined)pen=-20;
   var adj=function(s){return Math.max(0,(s||0)+pen);};
@@ -147,7 +143,6 @@ function calcScore(pl,slot){
   return Math.max(10,Math.min(99,Math.round(raw*Math.max(0.7,(pl.energy||MAX_E)/MAX_E))));
 }
 
-// Clé de tri: score (prioritaire) → familiarité → âge → taille
 function sortKey(pl,slot,young){
   var sc=calcScore(pl,slot);
   var fr=FR[getFam(pl,slot)]||0;
@@ -155,36 +150,46 @@ function sortKey(pl,slot,young){
   return sc*100000+fr*1000+((young?(40-age):age)*10)+(TALL_POS[slot]?Math.round(h/10):0);
 }
 
-// ── Algorithme d'assignation ─────────────────────────────────
-// Logique: pour chaque slot, calcScore(joueur, slot) exactement comme players.js
-// Algorithme regret-based: assigne d'abord les slots les plus urgents
-// (ceux où le meilleur candidat est le plus nettement supérieur au 2ème)
+// ── Algorithme d'assignation amélioré (Anti-masking doublons) ────────────────
 function doAssign(players,positions){
   var n=positions.length,m=players.length;
-  // Matrice des scores: score[si][pi] = calcScore(players[pi], positions[si])
   var score=[];
   for(var si=0;si<n;si++){
     score[si]=[];
     for(var pi=0;pi<m;pi++)score[si][pi]=calcScore(players[pi],positions[si]);
   }
   var asgn=new Array(n).fill(-1),used=new Set(),done=new Array(n).fill(false);
+  
   for(var iter=0;iter<n;iter++){
-    // Calcule le regret de chaque slot non assigné sur les joueurs encore dispo
     var bestSi=-1,bestRegret=-1;
+    
     for(var si=0;si<n;si++){
       if(done[si])continue;
-      var top1=-1,top2=-1;
+      
+      // Calcule dynamiquement combien de slots identiques restent à pourvoir
+      var currentPos = positions[si];
+      var countSame = 0;
+      for(var k=0;k<n;k++){
+        if(!done[k] && positions[k] === currentPos) countSame++;
+      }
+      
+      // Récupère la liste triée des scores des joueurs dispo pour ce slot
+      var validScores = [];
       for(var pi=0;pi<m;pi++){
         if(used.has(pi))continue;
-        var s=score[si][pi];
-        if(s>top1){top2=top1;top1=s;}else if(s>top2)top2=s;
+        validScores.push(score[si][pi]);
       }
-      var regret=top1-Math.max(0,top2);
-      if(regret>bestRegret){bestRegret=regret;bestSi=si;}
+      validScores.sort(function(a,b){return b-a;});
+      
+      var top1 = validScores[0] !== undefined ? validScores[0] : -1;
+      // L'alternative réelle est le joueur disponible après avoir rempli tous les postes identiques requis
+      var top2 = validScores[countSame] !== undefined ? validScores[countSame] : -1;
+      
+      var regret = top1 - Math.max(0, top2);
+      if(regret > bestRegret){bestRegret=regret;bestSi=si;}
     }
     if(bestSi===-1)break;
-    // Assigne le meilleur joueur disponible pour ce slot
-    // Tri: score DESC → familiarité DESC → âge jeune → taille
+    
     var slot=positions[bestSi];
     var cands=[];
     for(var pi=0;pi<m;pi++){
@@ -195,7 +200,7 @@ function doAssign(players,positions){
     cands.sort(function(a,b){
       if(b.sc!==a.sc)return b.sc-a.sc;
       if(b.fr!==a.fr)return b.fr-a.fr;
-      if(a.age!==b.age)return a.age-b.age; // jeune d'abord
+      if(a.age!==b.age)return a.age-b.age;
       return TALL_POS[slot]?(b.h-a.h):0;
     });
     var bestPi=cands[0]?cands[0].pi:-1;
@@ -218,7 +223,6 @@ function doBackups(players,usedIds,starters,formation){
   var saByPos={};
   starters.filter(Boolean).forEach(function(s){if(!saByPos[s.slotPos])saByPos[s.slotPos]=[];saByPos[s.slotPos].push(s.player.metadata&&s.player.metadata.age||25);});
 
-  // Polyvalent LB/RB ou DG/DD
   var polyKey=Object.keys(slots).filter(function(k){return k==='DGDD'||k==='LBRB';})[0];
   if(polyKey){
     var p1=polyKey==='DGDD'?'DG':'LB',p2=polyKey==='DGDD'?'DD':'RB';
@@ -348,6 +352,8 @@ pnl.innerHTML=
   '<input class="mn" id="mfl-omin" type="number" value="1" min="1" max="99" placeholder="min">'+
   '<span style="color:#444">—</span>'+
   '<input class="mn" id="mfl-omax" type="number" value="99" min="1" max="99" placeholder="max">'+
+  '<label style="display:flex;align-items:center;gap:4px;font-size:10px;color:#888;cursor:pointer"><input type="checkbox" id="mfl-excl-ret" checked style="accent-color:#e2b714"> ⚠️ret</label>'+
+  '<label style="display:flex;align-items:center;gap:4px;font-size:10px;color:#888;cursor:pointer"><input type="checkbox" id="mfl-excl-con" checked style="accent-color:#e2b714"> 📋contrat</label>'+
   '<button class="btn bbl" onclick="mflGen()">▶ Générer</button>'+
   '<button class="btn bgr" id="mfl-all-btn" style="display:none" onclick="mflSignAll()">✅ Signer tout</button>'+
   '<button class="btn bgy" onclick="document.getElementById(\'mflsb\').remove()">✕</button>'+
@@ -365,6 +371,8 @@ window.mflGen=function(){
   if(!FORM[formation]){document.getElementById('mfl-st').textContent='Formation inconnue';return;}
   var ovrMin=parseInt(document.getElementById('mfl-omin').value)||1;
   var ovrMax=parseInt(document.getElementById('mfl-omax').value)||99;
+  var exclRet=document.getElementById('mfl-excl-ret').checked;
+  var exclCon=document.getElementById('mfl-excl-con').checked;
   var bd=document.getElementById('mfl-bd');
   bd.innerHTML='<div style="padding:10px 12px;color:#444">⏳ Chargement...</div>';
   document.getElementById('mfl-all-btn').style.display='none';
@@ -382,7 +390,10 @@ window.mflGen=function(){
     var signedIds=new Set(existing.map(function(c){return typeof c.player==='object'?c.player&&c.player.id:c.player;}));
     var avail=allP.filter(function(p){
       var o=p.metadata&&p.metadata.overall||0;
-      return o>=ovrMin&&o<=ovrMax&&!p.activeContract&&!signedIds.has(p.id)&&!(p.metadata&&p.metadata.retirementYears<=1);
+      if(o<ovrMin||o>ovrMax)return false;
+      if(exclCon&&p.activeContract)return false;
+      if(exclRet&&p.metadata&&p.metadata.retirementYears!==undefined&&p.metadata.retirementYears<=1)return false;
+      return true;
     });
     document.getElementById('mfl-st').textContent=allP.length+' joueurs / '+avail.length+' dispo / '+signedIds.size+' signés / Club '+clubId+(window._MT?' / 🔑 Token OK':' / ⚠️ Pas de token');
     if(avail.length<11){bd.innerHTML='<div style="padding:10px 12px;color:#ff5555">Seulement '+avail.length+' joueurs dispo — élargis OVR</div>';return;}
