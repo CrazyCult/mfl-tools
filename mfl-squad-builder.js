@@ -156,20 +156,63 @@ function sortKey(pl,slot,young){
 }
 
 // ── Algorithme d'assignation ─────────────────────────────────
-// Logique: pour chaque slot, calcScore(joueur, slot) exactement comme players.js
-// Algorithme regret-based: assigne d'abord les slots les plus urgents
-// (ceux où le meilleur candidat est le plus nettement supérieur au 2ème)
+// Stratégie en 3 passes:
+// Pass 1: Pour chaque joueur, trouve son slot PRIMARY préféré (où il a le meilleur score)
+//         Si plusieurs joueurs visent le même slot, garde celui avec le meilleur score
+// Pass 2: Idem pour SECONDARY (positions secondaires natives du joueur)
+// Pass 3: Remplit les slots restants avec les meilleurs candidats encore disponibles (FF/SF)
 function doAssign(players,positions){
   var n=positions.length,m=players.length;
-  // Matrice des scores: score[si][pi] = calcScore(players[pi], positions[si])
+  // Matrice des scores
   var score=[];
   for(var si=0;si<n;si++){
     score[si]=[];
     for(var pi=0;pi<m;pi++)score[si][pi]=calcScore(players[pi],positions[si]);
   }
   var asgn=new Array(n).fill(-1),used=new Set(),done=new Array(n).fill(false);
-  for(var iter=0;iter<n;iter++){
-    // Calcule le regret de chaque slot non assigné sur les joueurs encore dispo
+
+  // Pour chaque joueur, liste ses slots compatibles à un niveau donné
+  function slotsAtLevel(pi,levels){
+    var out=[];
+    for(var si=0;si<n;si++){
+      if(done[si])continue;
+      var fam=getFam(players[pi],positions[si]);
+      if(levels.indexOf(fam)>=0)out.push({si:si,sc:score[si][pi]});
+    }
+    return out.sort(function(a,b){return b.sc-a.sc;});
+  }
+
+  // Passes 1 & 2: par niveau de familiarité (PRIMARY puis SECONDARY)
+  ['PRIMARY','SECONDARY'].forEach(function(level){
+    var changed=true;
+    while(changed){
+      changed=false;
+      // Pour chaque joueur non utilisé: trouve son meilleur slot à ce niveau
+      var bids=[]; // {pi, si, sc}
+      for(var pi=0;pi<m;pi++){
+        if(used.has(pi))continue;
+        var avail=slotsAtLevel(pi,[level]);
+        if(avail.length>0)bids.push({pi:pi,si:avail[0].si,sc:avail[0].sc});
+      }
+      // Pour chaque slot, prend le joueur avec le meilleur score
+      // (résolution des conflits: plusieurs joueurs visent le même slot)
+      var bySlot={};
+      bids.forEach(function(b){
+        if(!bySlot[b.si]||bySlot[b.si].sc<b.sc)bySlot[b.si]=b;
+      });
+      // Assigne
+      Object.keys(bySlot).forEach(function(siStr){
+        var b=bySlot[siStr];
+        if(done[b.si]||used.has(b.pi))return;
+        asgn[b.si]=b.pi;used.add(b.pi);done[b.si]=true;changed=true;
+      });
+    }
+  });
+
+  // Pass 3: comble les slots restants avec les meilleurs candidats restants
+  // (peu importe la familiarité, prend le meilleur score disponible)
+  // Mais on assigne en commençant par le slot avec le plus grand regret
+  while(true){
     var bestSi=-1,bestRegret=-1;
     for(var si=0;si<n;si++){
       if(done[si])continue;
@@ -179,29 +222,29 @@ function doAssign(players,positions){
         var s=score[si][pi];
         if(s>top1){top2=top1;top1=s;}else if(s>top2)top2=s;
       }
+      if(top1<0)continue;
       var regret=top1-Math.max(0,top2);
       if(regret>bestRegret){bestRegret=regret;bestSi=si;}
     }
     if(bestSi===-1)break;
     // Assigne le meilleur joueur disponible pour ce slot
-    // Tri: score DESC → familiarité DESC → âge jeune → taille
     var slot=positions[bestSi];
-    var cands=[];
+    var bestPi=-1,bestSc=-1,bestFr=-1,bestAge=999;
     for(var pi=0;pi<m;pi++){
       if(used.has(pi))continue;
-      var m2=players[pi].metadata||{};
-      cands.push({pi:pi,sc:score[bestSi][pi],fr:FR[getFam(players[pi],slot)]||0,age:m2.age||25,h:m2.height||175});
+      var sc=score[bestSi][pi];
+      var fr=FR[getFam(players[pi],slot)]||0;
+      var age=(players[pi].metadata&&players[pi].metadata.age)||25;
+      var better=false;
+      if(sc>bestSc)better=true;
+      else if(sc===bestSc&&fr>bestFr)better=true;
+      else if(sc===bestSc&&fr===bestFr&&age<bestAge)better=true;
+      if(better){bestSc=sc;bestFr=fr;bestAge=age;bestPi=pi;}
     }
-    cands.sort(function(a,b){
-      if(b.sc!==a.sc)return b.sc-a.sc;
-      if(b.fr!==a.fr)return b.fr-a.fr;
-      if(a.age!==b.age)return a.age-b.age; // jeune d'abord
-      return TALL_POS[slot]?(b.h-a.h):0;
-    });
-    var bestPi=cands[0]?cands[0].pi:-1;
     if(bestPi>=0){asgn[bestSi]=bestPi;used.add(bestPi);}
     done[bestSi]=true;
   }
+
   return asgn.map(function(pi,si){
     if(pi===-1)return null;
     var p=players[pi],slotPos=positions[si];
