@@ -156,46 +156,57 @@ function sortKey(pl,slot,young){
 }
 
 // ── Algorithme d'assignation ─────────────────────────────────
-// Pour chaque itération: choisit le slot avec le moins de candidats PRIMARY disponibles
-// (les plus urgents à pourvoir), puis assigne le meilleur joueur selon sortKey
+// Logique: pour chaque slot, calcScore(joueur, slot) exactement comme players.js
+// Algorithme regret-based: assigne d'abord les slots les plus urgents
+// (ceux où le meilleur candidat est le plus nettement supérieur au 2ème)
 function doAssign(players,positions){
   var n=positions.length,m=players.length;
+  // Matrice des scores: score[si][pi] = calcScore(players[pi], positions[si])
+  var score=[];
+  for(var si=0;si<n;si++){
+    score[si]=[];
+    for(var pi=0;pi<m;pi++)score[si][pi]=calcScore(players[pi],positions[si]);
+  }
   var asgn=new Array(n).fill(-1),used=new Set(),done=new Array(n).fill(false);
-
   for(var iter=0;iter<n;iter++){
-    // Trouve le slot le plus urgent (moins de PRIMARY dispo, puis meilleur score)
-    var bestSi=-1,bestPrimary=999999,bestTop=-1;
+    // Calcule le regret de chaque slot non assigné sur les joueurs encore dispo
+    var bestSi=-1,bestRegret=-1;
     for(var si=0;si<n;si++){
       if(done[si])continue;
-      var primaryCount=0,topScore=-1;
+      var top1=-1,top2=-1;
       for(var pi=0;pi<m;pi++){
         if(used.has(pi))continue;
-        if(getFam(players[pi],positions[si])==='PRIMARY')primaryCount++;
-        var sc=sortKey(players[pi],positions[si],true);
-        if(sc>topScore)topScore=sc;
+        var s=score[si][pi];
+        if(s>top1){top2=top1;top1=s;}else if(s>top2)top2=s;
       }
-      if(primaryCount<bestPrimary||(primaryCount===bestPrimary&&topScore>bestTop)){
-        bestPrimary=primaryCount;bestTop=topScore;bestSi=si;
-      }
+      var regret=top1-Math.max(0,top2);
+      if(regret>bestRegret){bestRegret=regret;bestSi=si;}
     }
     if(bestSi===-1)break;
-    // Assigne le meilleur joueur pour ce slot
-    var bestPi=-1,bestSk=-1;
+    // Assigne le meilleur joueur disponible pour ce slot
+    // Tri: score DESC → familiarité DESC → âge jeune → taille
+    var slot=positions[bestSi];
+    var cands=[];
     for(var pi=0;pi<m;pi++){
       if(used.has(pi))continue;
-      var sk=sortKey(players[pi],positions[bestSi],true);
-      if(sk>bestSk){bestSk=sk;bestPi=pi;}
+      var m2=players[pi].metadata||{};
+      cands.push({pi:pi,sc:score[bestSi][pi],fr:FR[getFam(players[pi],slot)]||0,age:m2.age||25,h:m2.height||175});
     }
+    cands.sort(function(a,b){
+      if(b.sc!==a.sc)return b.sc-a.sc;
+      if(b.fr!==a.fr)return b.fr-a.fr;
+      if(a.age!==b.age)return a.age-b.age; // jeune d'abord
+      return TALL_POS[slot]?(b.h-a.h):0;
+    });
+    var bestPi=cands[0]?cands[0].pi:-1;
     if(bestPi>=0){asgn[bestSi]=bestPi;used.add(bestPi);}
     done[bestSi]=true;
   }
-
   return asgn.map(function(pi,si){
     if(pi===-1)return null;
     var p=players[pi],slotPos=positions[si];
-    var fam=getFam(p,slotPos);
     var pos=p.metadata&&p.metadata.positions||[];
-    return{player:p,pos:pos[0]||slotPos,slotPos:slotPos,sc:calcScore(p,slotPos),fam:fam};
+    return{player:p,pos:pos[0]||slotPos,slotPos:slotPos,sc:score[si][pi],fam:getFam(p,slotPos)};
   });
 }
 
