@@ -5,6 +5,36 @@ var API='https://z519wdyajg.execute-api.us-east-1.amazonaws.com/prod';
 var MAX_E=10000;
 var TALL_POS={GK:1,G:1,CB:1,DC:1,ST:1,BU:1,LWB:1,DLG:1,RWB:1,DLD:1};
 
+// Pagination: l'API limite à 400 joueurs par appel. On boucle avec beforePlayerId
+// (cursor = id du dernier joueur récupéré, pour récupérer ceux avant)
+function fetchAllPlayers(wallet){
+  return new Promise(function(resolve){
+    var all=[],last=null,calls=0;
+    function next(){
+      calls++;
+      if(calls>10){console.warn('[MFL] Pagination stop à 10 appels');resolve(all);return;}
+      var url=API+'/players?ownerWalletAddress='+wallet+'&limit=400';
+      if(last)url+='&beforePlayerId='+last;
+      _of(url).then(function(r){return r.json();}).then(function(d){
+        var batch=Array.isArray(d)?d:(d.items||[]);
+        if(batch.length===0){resolve(all);return;}
+        // Évite les doublons
+        var ids={};all.forEach(function(p){ids[p.id]=1;});
+        var newOnes=batch.filter(function(p){return!ids[p.id];});
+        if(newOnes.length===0){resolve(all);return;}
+        all=all.concat(newOnes);
+        // Trouve le plus petit id de la page pour le prochain cursor
+        var minId=newOnes.reduce(function(m,p){return p.id<m?p.id:m;},newOnes[0].id);
+        last=minId;
+        console.log('[MFL] Pagination: '+all.length+' joueurs chargés (appel #'+calls+')');
+        if(newOnes.length<400){resolve(all);return;}
+        next();
+      }).catch(function(e){console.warn('[MFL] Pagination err:',e);resolve(all);});
+    }
+    next();
+  });
+}
+
 // Club ID depuis URL
 var cm=location.href.match(/\/clubs\/(\d+)/);
 window._MC=cm?parseInt(cm[1]):null;
@@ -423,31 +453,34 @@ window.mflGen=function(){
   document.getElementById('mfl-st').textContent='Chargement...';
 
   Promise.all([
-    _of(API+'/players?ownerWalletAddress='+wallet+'&limit=500'),
-    _of(API+'/contracts?period=currentSeason&clubId='+clubId)
-  ]).then(function(rr){return Promise.all(rr.map(function(r){return r.json();}));})
-  .then(function(dd){
-    var allP=Array.isArray(dd[0])?dd[0]:dd[0].items||[];
+    fetchAllPlayers(wallet),
+    _of(API+'/contracts?period=currentSeason&clubId='+clubId).then(function(r){return r.json();})
+  ]).then(function(dd){
+    var allP=dd[0]||[];
     var existing=dd[1].items||dd[1]||[];
     var signedIds=new Set(existing.map(function(c){return typeof c.player==='object'?c.player&&c.player.id:c.player;}));
     var avail=allP.filter(function(p){
       var o=p.metadata&&p.metadata.overall||0;
       if(o<ovrMin||o>ovrMax)return false;
+      // Toujours exclure les vraiment retraités (retirementYears=0)
+      if(p.metadata&&p.metadata.retirementYears===0)return false;
       // Contrat: exclure uniquement si sous contrat avec UN AUTRE club
       if(exclCon&&p.activeContract&&p.activeContract.club&&p.activeContract.club.id!==clubId)return false;
-      if(exclRet&&p.metadata&&p.metadata.retirementYears!==undefined&&p.metadata.retirementYears<=0)return false;
+      // Filtre retraite optionnel: case cochée = exclure aussi les 1 saison restante
+      if(exclRet&&p.metadata&&p.metadata.retirementYears!==undefined&&p.metadata.retirementYears<=1)return false;
       return true;
     });
     // Debug: comptage par poste natif principal
-    var byPos={},excluded={ovr:0,con:0,ret:0,kept:0},excludedPlayers={con:[],ret:[]};
+    var byPos={},excluded={ovr:0,con:0,ret:0,retraite:0,kept:0},excludedPlayers={con:[],ret:[],retraite:[]};
     allP.forEach(function(p){
       var m=p.metadata||{},o=m.overall||0;
       var nm=(m.firstName&&m.firstName[0]||'?')+'.'+(m.lastName||'?')+' OVR'+o+' '+(m.positions||['?']).join('/');
       if(o<ovrMin||o>ovrMax){excluded.ovr++;return;}
+      if(m.retirementYears===0){excluded.retraite++;excludedPlayers.retraite.push(nm);return;}
       if(exclCon&&p.activeContract&&p.activeContract.club&&p.activeContract.club.id!==clubId){
         excluded.con++;excludedPlayers.con.push(nm+' (club#'+p.activeContract.club.id+')');return;
       }
-      if(exclRet&&m.retirementYears!==undefined&&m.retirementYears<=0){
+      if(exclRet&&m.retirementYears!==undefined&&m.retirementYears<=1){
         excluded.ret++;excludedPlayers.ret.push(nm+' (ret:'+m.retirementYears+')');return;
       }
       excluded.kept++;
@@ -515,13 +548,19 @@ window.mflGen=function(){
         var nm=(m.firstName&&m.firstName[0]||'')+'. '+(m.lastName||'?');
         var age=m.age||'?',h=m.height||'?';
         var allPos=(m.positions||[]).join('/');
+        // Badge retraite: 1=rouge, 2=orange, 3=jaune. Pas affiché sinon.
+        var ry=m.retirementYears;
+        var retBadge='';
+        if(ry===1)retBadge='<span style="color:#ff3333;font-weight:700;margin-left:4px" title="1 saison restante">⏳1</span>';
+        else if(ry===2)retBadge='<span style="color:#ff9900;font-weight:700;margin-left:4px" title="2 saisons restantes">⏳2</span>';
+        else if(ry===3)retBadge='<span style="color:#e2b714;font-weight:700;margin-left:4px" title="3 saisons restantes">⏳3</span>';
         var ageC=sl.role==='Tit.'?(age<23?'#3af24b':age>30?'#ff9900':'#888'):(age>32?'#ff9900':'#888');
         var signed=signedIds.has(sl.player.id);
         var famCls=sl.fam==='poly'?'':sl.fam||'UNFAMILIAR';
         html+='<div class="pr">'+
           '<span class="pp '+famCls+'" title="'+sl.pos+' → '+sl.slotPos+' ('+sl.fam+')">'+sl.pos+'</span>'+
           '<span class="pslot">'+sl.slotPos+'</span>'+
-          '<span class="pn" title="'+allPos+'">'+nm+' <span style="color:#2a2a3a;font-size:9px">'+allPos+'</span></span>'+
+          '<span class="pn" title="'+allPos+'">'+nm+retBadge+' <span style="color:#2a2a3a;font-size:9px">'+allPos+'</span></span>'+
           '<span class="pa" style="color:'+ageC+'">'+age+'</span>'+
           '<span class="ph">'+h+'</span>'+
           '<span class="po" style="color:'+oc(ovr)+'">'+ovr+'</span>'+
@@ -553,18 +592,18 @@ window.mflSuggest=function(){
   var clubId=window._MC;
   document.getElementById('mfl-st').textContent='🎯 Recherche meilleure formation...';
   Promise.all([
-    _of(API+'/players?ownerWalletAddress='+wallet+'&limit=500'),
-    clubId?_of(API+'/contracts?period=currentSeason&clubId='+clubId):Promise.resolve({json:function(){return [];}})
-  ]).then(function(rr){return Promise.all(rr.map(function(r){return r.json();}));})
-  .then(function(dd){
-    var allP=Array.isArray(dd[0])?dd[0]:dd[0].items||[];
+    fetchAllPlayers(wallet),
+    clubId?_of(API+'/contracts?period=currentSeason&clubId='+clubId).then(function(r){return r.json();}):Promise.resolve([])
+  ]).then(function(dd){
+    var allP=dd[0]||[];
     var existing=dd[1].items||dd[1]||[];
     var signedIds=new Set(existing.map(function(c){return typeof c.player==='object'?c.player&&c.player.id:c.player;}));
     var avail=allP.filter(function(p){
       var o=p.metadata&&p.metadata.overall||0;
       if(o<ovrMin||o>ovrMax)return false;
+      if(p.metadata&&p.metadata.retirementYears===0)return false;
       if(exclCon&&p.activeContract&&p.activeContract.club&&p.activeContract.club.id!==clubId)return false;
-      if(exclRet&&p.metadata&&p.metadata.retirementYears!==undefined&&p.metadata.retirementYears<=0)return false;
+      if(exclRet&&p.metadata&&p.metadata.retirementYears!==undefined&&p.metadata.retirementYears<=1)return false;
       return true;
     });
     // Teste toutes les formations
