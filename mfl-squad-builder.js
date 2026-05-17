@@ -236,6 +236,7 @@ function suggestFormation(players){
 }
 
 // ── Remplaçants ──────────────────────────────────────────────
+// Comme doAssign: UNIQUEMENT des joueurs natifs (PRIMARY/SECONDARY) au poste
 function doBackups(players,usedIds,starters,formation){
   var slots=SLOTS[formation]||{},frmPos=FORM[formation]||[];
   var remaining=players.filter(function(p){return!usedIds.has(p.id);});
@@ -243,11 +244,16 @@ function doBackups(players,usedIds,starters,formation){
   var saByPos={};
   starters.filter(Boolean).forEach(function(s){if(!saByPos[s.slotPos])saByPos[s.slotPos]=[];saByPos[s.slotPos].push(s.player.metadata&&s.player.metadata.age||25);});
 
-  // Polyvalent LB/RB ou DG/DD
+  // Polyvalent LB/RB ou DG/DD : joueur natif sur AU MOINS un des deux postes
   var polyKey=Object.keys(slots).filter(function(k){return k==='DGDD'||k==='LBRB';})[0];
   if(polyKey){
     var p1=polyKey==='DGDD'?'DG':'LB',p2=polyKey==='DGDD'?'DD':'RB';
-    var best=remaining.filter(function(p){return!lu.has(p.id);}).sort(function(a,b){
+    var polyCands=remaining.filter(function(p){
+      if(lu.has(p.id))return false;
+      var f1=getFam(p,p1),f2=getFam(p,p2);
+      return f1==='PRIMARY'||f1==='SECONDARY'||f2==='PRIMARY'||f2==='SECONDARY';
+    });
+    var best=polyCands.sort(function(a,b){
       return(calcScore(b,p1)+calcScore(b,p2))-(calcScore(a,p1)+calcScore(a,p2));
     })[0];
     if(best){
@@ -262,7 +268,13 @@ function doBackups(players,usedIds,starters,formation){
     var total=slots[posKey],titCount=frmPos.filter(function(p){return p===posKey;}).length,bc=total-titCount;
     if(bc<=0)return;
     var sa=saByPos[posKey]||[];
-    var sorted=remaining.filter(function(p){return!lu.has(p.id);}).sort(function(a,b){
+    // STRICT: uniquement joueurs natifs au poste
+    var natives=remaining.filter(function(p){
+      if(lu.has(p.id))return false;
+      var fam=getFam(p,posKey);
+      return fam==='PRIMARY'||fam==='SECONDARY';
+    });
+    var sorted=natives.sort(function(a,b){
       return sortKey(b,posKey,false)-sortKey(a,posKey,false);
     });
     var cands=[],fb=[];
