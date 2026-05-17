@@ -448,23 +448,32 @@ window.mflGen=function(){
     var avail=allP.filter(function(p){
       var o=p.metadata&&p.metadata.overall||0;
       if(o<ovrMin||o>ovrMax)return false;
-      if(exclCon&&p.activeContract)return false;
+      // Contrat: exclure uniquement si sous contrat avec UN AUTRE club
+      if(exclCon&&p.activeContract&&p.activeContract.club&&p.activeContract.club.id!==clubId)return false;
       if(exclRet&&p.metadata&&p.metadata.retirementYears!==undefined&&p.metadata.retirementYears<=0)return false;
       return true;
     });
     // Debug: comptage par poste natif principal
-    var byPos={},excluded={ovr:0,con:0,ret:0,kept:0};
+    var byPos={},excluded={ovr:0,con:0,ret:0,kept:0},excludedPlayers={con:[],ret:[]};
     allP.forEach(function(p){
       var m=p.metadata||{},o=m.overall||0;
+      var nm=(m.firstName&&m.firstName[0]||'?')+'.'+(m.lastName||'?')+' OVR'+o+' '+(m.positions||['?']).join('/');
       if(o<ovrMin||o>ovrMax){excluded.ovr++;return;}
-      if(exclCon&&p.activeContract){excluded.con++;return;}
-      if(exclRet&&m.retirementYears!==undefined&&m.retirementYears<=0){excluded.ret++;return;}
+      if(exclCon&&p.activeContract&&p.activeContract.club&&p.activeContract.club.id!==clubId){
+        excluded.con++;excludedPlayers.con.push(nm+' (club#'+p.activeContract.club.id+')');return;
+      }
+      if(exclRet&&m.retirementYears!==undefined&&m.retirementYears<=0){
+        excluded.ret++;excludedPlayers.ret.push(nm+' (ret:'+m.retirementYears+')');return;
+      }
       excluded.kept++;
       var pos0=(m.positions||['?'])[0];
       byPos[pos0]=(byPos[pos0]||0)+1;
     });
-    console.log('[MFL] Joueurs disponibles par poste principal:',byPos);
-    console.log('[MFL] Total exclus:',excluded,'/ OVR='+ovrMin+'-'+ovrMax+' exclRet='+exclRet+' exclCon='+exclCon);
+    console.log('[MFL] === Joueurs disponibles après filtres ===');
+    console.log('[MFL] Par poste principal:',byPos);
+    console.log('[MFL] Exclus:',excluded,'/ Filtres: OVR='+ovrMin+'-'+ovrMax+' exclRet='+exclRet+' exclCon='+exclCon+' clubId='+clubId);
+    if(excludedPlayers.con.length)console.log('[MFL] Exclus par CONTRAT:',excludedPlayers.con);
+    if(excludedPlayers.ret.length)console.log('[MFL] Exclus par RETRAITE:',excludedPlayers.ret);
     var baseStatus=allP.length+' joueurs / '+avail.length+' dispo / '+signedIds.size+' signés / Club '+clubId+(window._MT?' / 🔑 Token OK':' / ⚠️ Pas de token');
     document.getElementById('mfl-st').textContent=window._mflSuggestMsg||baseStatus;
     window._mflSuggestMsg=null;
@@ -569,7 +578,7 @@ window.mflSuggest=function(){
     var avail=allP.filter(function(p){
       var o=p.metadata&&p.metadata.overall||0;
       if(o<ovrMin||o>ovrMax)return false;
-      if(exclCon&&p.activeContract)return false;
+      if(exclCon&&p.activeContract&&p.activeContract.club&&p.activeContract.club.id!==clubId)return false;
       if(exclRet&&p.metadata&&p.metadata.retirementYears!==undefined&&p.metadata.retirementYears<=0)return false;
       return true;
     });
