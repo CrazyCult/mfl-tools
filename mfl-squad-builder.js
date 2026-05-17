@@ -257,64 +257,49 @@ function suggestFormation(players){
 }
 
 // ── Remplaçants ──────────────────────────────────────────────
-// Pour chaque groupe (GK / DEF / MID / ATT), prend les meilleurs joueurs natifs restants
-// pour permettre des rotations. Limite par groupe pour ne pas doubler tous les postes.
+// 1 remplaçant par SLOT UNIQUE de la formation (pour faire des rotations)
+// Même algorithme que doAssign: meilleure paire (joueur, slot) globale
+// où le slot est dans positions[] du joueur ET le slot existe dans la formation
 function doBackups(players,usedIds,starters,formation){
   var positions=FORM[formation]||[];
+  // Slots uniques de la formation
+  var uniqueSlots=[];
+  positions.forEach(function(s){if(uniqueSlots.indexOf(s)<0)uniqueSlots.push(s);});
+
   var remaining=players.filter(function(p){return!usedIds.has(p.id);});
+  var n=uniqueSlots.length,m=remaining.length;
+  var asgn=new Array(n).fill(-1),used=new Set(),done=new Array(n).fill(false);
 
-  // Groupes : nombre de remplaçants = ~moitié des titulaires du groupe (min 1)
-  var GROUPS={
-    GK:{slots:['GK','G']},
-    DEF:{slots:['CB','DC','LB','DG','RB','DD','LWB','DLG','RWB','DLD']},
-    MID:{slots:['CDM','MDC','CM','MC','LM','MG','RM','MD','CAM','MOC']},
-    ATT:{slots:['LW','AG','RW','AD','ST','BU','CF','AT']}
-  };
-
-  // Compte les titulaires de chaque groupe pour déterminer la profondeur du banc
-  var titularsPerGroup={};
-  positions.forEach(function(slot){
-    Object.keys(GROUPS).forEach(function(gn){
-      if(GROUPS[gn].slots.indexOf(slot)>=0){
-        titularsPerGroup[gn]=(titularsPerGroup[gn]||0)+1;
+  function allPairs(){
+    var pairs=[];
+    for(var pi=0;pi<m;pi++){
+      if(used.has(pi))continue;
+      for(var si=0;si<n;si++){
+        if(done[si])continue;
+        if(!isNative(remaining[pi],uniqueSlots[si]))continue;
+        pairs.push({pi:pi,si:si,sc:calcScore(remaining[pi],uniqueSlots[si])});
       }
-    });
-  });
-  // Bench: max(1, ceil(titulaires/2)) - 1 GK, 2 def si 3-4 titulaires, etc.
-  Object.keys(GROUPS).forEach(function(gn){
-    var t=titularsPerGroup[gn]||0;
-    if(gn==='GK')GROUPS[gn].max=1;
-    else GROUPS[gn].max=Math.max(1,Math.ceil(t/2));
-  });
+    }
+    pairs.sort(function(a,b){return b.sc-a.sc;});
+    return pairs;
+  }
 
-  var result={},lu=new Set();
+  while(true){
+    var pairs=allPairs();
+    if(pairs.length===0)break;
+    var best=pairs[0];
+    asgn[best.si]=best.pi;
+    used.add(best.pi);
+    done[best.si]=true;
+  }
 
-  Object.keys(GROUPS).forEach(function(gn){
-    if(!titularsPerGroup[gn])return;
-    var grp=GROUPS[gn];
-    var picked=[];
-    // Pour chaque candidat restant, calcule son MEILLEUR slot natif dans ce groupe
-    var cands=[];
-    remaining.forEach(function(p){
-      if(lu.has(p.id))return;
-      var bestSlot=null,bestSc=-1,bestFam=null;
-      grp.slots.forEach(function(slot){
-        if(!isNative(p,slot))return;
-        var sc=calcScore(p,slot);
-        if(sc>bestSc){bestSc=sc;bestSlot=slot;bestFam=getFam(p,slot);}
-      });
-      if(bestSlot)cands.push({player:p,slot:bestSlot,sc:bestSc,fam:bestFam,age:(p.metadata&&p.metadata.age)||25});
-    });
-    // Tri: score décroissant puis âge croissant
-    cands.sort(function(a,b){if(b.sc!==a.sc)return b.sc-a.sc;return a.age-b.age;});
-    cands.slice(0,grp.max).forEach(function(c){
-      var pos=c.player.metadata&&c.player.metadata.positions||[];
-      if(!result[c.slot])result[c.slot]=[];
-      result[c.slot].push({player:c.player,pos:pos[0]||c.slot,slotPos:c.slot,sc:c.sc,fam:c.fam});
-      lu.add(c.player.id);
-    });
+  var result={};
+  asgn.forEach(function(pi,si){
+    if(pi===-1)return;
+    var p=remaining[pi],slot=uniqueSlots[si];
+    var pos=p.metadata&&p.metadata.positions||[];
+    result[slot]=[{player:p,pos:pos[0]||slot,slotPos:slot,sc:calcScore(p,slot),fam:getFam(p,slot)}];
   });
-
   return result;
 }
 
