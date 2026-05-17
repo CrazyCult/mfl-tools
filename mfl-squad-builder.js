@@ -334,6 +334,7 @@ function doBackups(players,usedIds,starters,formation){
 }
 
 function oc(v){if(v>=95)return'#FFF';if(v>=85)return'#fa53ff';if(v>=75)return'#169fed';if(v>=65)return'#3af24b';if(v>=55)return'#FFCC00';return'#9f9f9f';}
+function ocTier(v){if(v>=95)return's95';if(v>=85)return's85';if(v>=75)return's75';if(v>=65)return's65';if(v>=55)return's55';return's0';}
 function gP(){
   var rev=Math.round(parseFloat(document.getElementById('mfl-rev').value||0)*100);
   var ns=parseInt(document.getElementById('mfl-seasons').value)||1;
@@ -349,60 +350,99 @@ function gP(){
 document.getElementById('mfl-st2')&&document.getElementById('mfl-st2').remove();
 var st=document.createElement('style');st.id='mfl-st2';
 st.textContent=[
-  '#mflsb{position:fixed;bottom:0;left:0;right:0;z-index:99999;background:#0b0b18;border-top:2px solid #e2b714;font-family:Segoe UI,sans-serif;font-size:12px;display:flex;flex-direction:column;max-height:52vh}',
+  '#mflsb{position:fixed;bottom:0;left:0;right:0;z-index:99999;background:#0e0e1a;border-top:2px solid #e2b714;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;font-size:12px;display:flex;flex-direction:column;max-height:58vh;color:#e8e8ec}',
   '#mflsb-w{display:flex;flex:1;overflow:hidden}',
-  '#mfl-cfg{background:#0d0d1a;border-right:1px solid #1c1c32;padding:10px 12px;width:246px;flex-shrink:0;overflow-y:auto;display:flex;flex-direction:column;gap:7px}',
-  '.cfg-t{color:#e2b714;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px}',
-  '.cr{display:flex;align-items:center;gap:6px;font-size:11px;color:#888}',
-  '.cr label{white-space:nowrap;min-width:85px;color:#777}',
-  '.cr input[type=number],.cr select{background:#0b0b18;border:1px solid #1c1c32;color:#ccc;border-radius:5px;padding:2px 6px;font-size:11px;width:56px}',
+  '#mfl-cfg{background:#0a0a14;border-right:1px solid #1c1c2e;padding:12px 14px;width:248px;flex-shrink:0;overflow-y:auto;display:flex;flex-direction:column;gap:8px}',
+  '.cfg-t{color:#e2b714;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px}',
+  '.cr{display:flex;align-items:center;gap:6px;font-size:11px;color:#9a9aab}',
+  '.cr label{white-space:nowrap;min-width:90px;color:#7a7a8c}',
+  '.cr input[type=number],.cr select{background:#0e0e1a;border:1px solid #232336;color:#d8d8e0;border-radius:5px;padding:3px 6px;font-size:11px;width:60px}',
   '.cr input[type=checkbox]{accent-color:#e2b714;width:14px;height:14px;cursor:pointer}',
-  '.cbox{background:#111128;border:1px solid #1c1c32;border-radius:6px;padding:7px 9px;display:flex;flex-direction:column;gap:5px}',
-  '.cbox-h{display:flex;align-items:center;gap:6px;font-size:11px;color:#aaa;font-weight:600}',
+  '.cbox{background:#13131f;border:1px solid #232336;border-radius:6px;padding:8px 10px;display:flex;flex-direction:column;gap:5px}',
+  '.cbox-h{display:flex;align-items:center;gap:6px;font-size:11px;color:#b0b0c0;font-weight:600}',
   '.cbox-d{padding-left:20px;display:flex;flex-direction:column;gap:4px}',
   '#mfl-main{flex:1;display:flex;flex-direction:column;overflow:hidden}',
-  '#mfl-bar{background:#0f0f22;padding:7px 12px;display:flex;align-items:center;gap:8px;border-bottom:1px solid #1c1c32;flex-shrink:0;flex-wrap:wrap}',
-  '#mfl-bar h2{color:#e2b714;font-size:13px;font-weight:700;margin-right:auto}',
-  '.ms{background:#0d0d1a;border:1px solid #1c1c32;color:#ccc;border-radius:5px;padding:3px 6px;font-size:11px;max-width:140px}',
-  '.mn{background:#0d0d1a;border:1px solid #1c1c32;color:#ccc;border-radius:5px;padding:3px 6px;font-size:11px;width:46px}',
-  '#mfl-st{padding:3px 12px;font-size:10px;color:#555;border-bottom:1px solid #0d0d1a;flex-shrink:0}',
-  '#mfl-bd{overflow-y:auto;flex:1;scrollbar-width:thin;scrollbar-color:#1c1c32 transparent}',
-  '.mg{padding:3px 12px 0}',
-  '.mg-t{font-size:9px;color:#444;text-transform:uppercase;letter-spacing:.6px;padding:3px 0 2px;border-bottom:1px solid #131325}',
-  '.pr{display:flex;align-items:center;padding:2px 12px;border-bottom:1px solid #0d0d1a;gap:6px;font-size:11px}',
-  '.pr:hover{background:#0d0d1f}',
-  '.pr>.c-pos{flex:0 0 40px;text-align:center}',
-  '.pr>.c-slot{flex:0 0 30px;text-align:center;font-size:9px;color:#444}',
-  '.pr>.c-name{flex:1 1 auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#ccc;min-width:160px}',
-  '.pr>.c-stat{flex:0 0 26px;text-align:center;font-weight:600;font-size:10px}',
-  '.pr>.c-age{flex:0 0 26px;text-align:center;font-weight:600;font-size:10px}',
-  '.pr>.c-ovr{flex:0 0 30px;text-align:right;font-weight:700}',
-  '.pr>.c-sc{flex:0 0 30px;text-align:right;font-size:10px}',
-  '.pr>.c-act{flex:0 0 110px;display:flex;justify-content:flex-end;gap:4px;align-items:center}',
-  '.pp{font-size:9px;font-weight:700;background:#1a1a2a;border-radius:3px;padding:1px 4px;text-align:center;color:#555;display:inline-block;min-width:30px}',
-  '.pp.PRIMARY{color:#3af24b;background:#0d1f0d}',
-  '.pp.SECONDARY{color:#FFCC00;background:#1a1800}',
-  '.pp.FAIRLY_FAMILIAR{color:#ff9900;background:#1a0f00}',
-  '.pp.SOMEWHAT_FAMILIAR{color:#ff5500;background:#200800}',
-  '.pp.UNFAMILIAR{color:#666;background:#111}',
-  '.btn{border:none;border-radius:4px;padding:2px 8px;font-size:10px;font-weight:700;cursor:pointer;white-space:nowrap}',
-  '.bs{background:#e2b714;color:#0b0b18}.bs:hover{background:#f0c830}',
-  '.bsw{background:#169fed;color:#fff;padding:2px 6px;font-size:9px}.bsw:hover{background:#1ab0ff}',
+  '#mfl-bar{background:#13131f;padding:8px 14px;display:flex;align-items:center;gap:8px;border-bottom:1px solid #232336;flex-shrink:0;flex-wrap:wrap}',
+  '#mfl-bar h2{color:#e2b714;font-size:14px;font-weight:700;margin-right:auto}',
+  '.ms{background:#0a0a14;border:1px solid #232336;color:#d8d8e0;border-radius:6px;padding:4px 8px;font-size:12px;max-width:160px}',
+  '.mn{background:#0a0a14;border:1px solid #232336;color:#d8d8e0;border-radius:6px;padding:4px 8px;font-size:12px;width:50px}',
+  '#mfl-st{padding:6px 14px;font-size:10px;color:#6a6a7a;border-bottom:1px solid #1c1c2e;flex-shrink:0;background:#0a0a14}',
+  '#mfl-bd{overflow-y:auto;flex:1;scrollbar-width:thin;scrollbar-color:#232336 transparent}',
+  '.mg{padding:6px 14px 0}',
+  '.mg-t{font-size:10px;color:#6a6a7a;text-transform:uppercase;letter-spacing:.8px;padding:6px 0 4px;border-bottom:1px solid #1c1c2e;font-weight:600}',
+
+  /* Lignes joueur - design MFL */
+  '.pr{display:flex;align-items:center;padding:6px 14px;border-bottom:1px solid #161624;gap:8px;font-size:12px;transition:background .15s}',
+  '.pr:hover{background:#15152a}',
+  '.pr>.c-pos{flex:0 0 44px;text-align:center}',
+  '.pr>.c-slot{flex:0 0 30px;text-align:center;font-size:10px;color:#4a4a5a;font-weight:600}',
+  '.pr>.c-name{flex:1 1 auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#e8e8ec;min-width:170px;font-weight:500}',
+  '.pr>.c-stat{flex:0 0 32px;text-align:center}',
+  '.pr>.c-age{flex:0 0 32px;text-align:center;font-weight:600;font-size:11px}',
+  '.pr>.c-ovr{flex:0 0 34px}',
+  '.pr>.c-sc{flex:0 0 34px}',
+  '.pr>.c-act{flex:0 0 130px;display:flex;justify-content:flex-end;gap:5px;align-items:center}',
+
+  /* Badge poste familiarité */
+  '.pp{font-size:9px;font-weight:700;border-radius:3px;padding:2px 5px;text-align:center;display:inline-block;min-width:32px;letter-spacing:.3px}',
+  '.pp.PRIMARY{color:#0a0a14;background:#3ada4b}',
+  '.pp.SECONDARY{color:#0a0a14;background:#FFCC00}',
+  '.pp.FAIRLY_FAMILIAR{color:#fff;background:#ff9900}',
+  '.pp.SOMEWHAT_FAMILIAR{color:#fff;background:#e64a19}',
+  '.pp.UNFAMILIAR{color:#888;background:#1a1a2a}',
+
+  /* Cases stats colorées style MFL (carrés arrondis avec couleurs vives) */
+  '.stbox{display:inline-block;width:28px;height:22px;line-height:22px;text-align:center;font-weight:700;font-size:11px;border-radius:5px;color:#fff}',
+  '.stbox.s95{background:#fff;color:#0a0a14;box-shadow:0 0 6px rgba(255,255,255,.4)}', /* Ultimate ≥95 blanc */
+  '.stbox.s85{background:#fa53ff}',  /* Légendaire 85-94 violet/rose vif */
+  '.stbox.s75{background:#169fed}',  /* Rare 75-84 bleu */
+  '.stbox.s65{background:#3af24b;color:#0a0a14}', /* Peu commun 65-74 vert */
+  '.stbox.s55{background:#FFCC00;color:#0a0a14}', /* Limited 55-64 jaune */
+  '.stbox.s0{background:#9a9aab;color:#0a0a14}',  /* Commun 0-54 gris */
+
+  /* Big OVR box - style carte MFL */
+  '.ovrbox{display:inline-block;min-width:30px;height:24px;line-height:24px;text-align:center;font-weight:800;font-size:13px;border-radius:5px;padding:0 4px;color:#fff}',
+  '.ovrbox.s95{background:#fff;color:#0a0a14}',
+  '.ovrbox.s85{background:#fa53ff}',
+  '.ovrbox.s75{background:#169fed}',
+  '.ovrbox.s65{background:#3af24b;color:#0a0a14}',
+  '.ovrbox.s55{background:#FFCC00;color:#0a0a14}',
+  '.ovrbox.s0{background:#9a9aab;color:#0a0a14}',
+
+  /* Score au slot - plus petit */
+  '.scbox{display:inline-block;min-width:26px;height:20px;line-height:20px;text-align:center;font-weight:700;font-size:11px;border-radius:4px;padding:0 3px;color:#fff;opacity:.85}',
+  '.scbox.s95{background:#fff;color:#0a0a14}',
+  '.scbox.s85{background:#fa53ff}',
+  '.scbox.s75{background:#169fed}',
+  '.scbox.s65{background:#3af24b;color:#0a0a14}',
+  '.scbox.s55{background:#FFCC00;color:#0a0a14}',
+  '.scbox.s0{background:#9a9aab;color:#0a0a14}',
+
+  /* Boutons */
+  '.btn{border:none;border-radius:5px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;transition:all .15s}',
+  '.bs{background:#e2b714;color:#0a0a14}.bs:hover{background:#f0c830;transform:translateY(-1px)}',
+  '.bsw{background:transparent;border:1px solid #2c2c40;color:#9a9aab;padding:3px 7px;font-size:10px}.bsw:hover{border-color:#169fed;color:#169fed}',
   '.bok{background:#1a3a1a;color:#3af24b;cursor:default;pointer-events:none}',
   '.bw{background:#333;color:#666;cursor:wait}.be{background:#3a0d0d;color:#ff5555}',
-  '.bbl{background:#169fed;color:#fff}.bbl:hover{background:#1ab0ff}',
-  '.bgr{background:#3af24b;color:#0b0b18}.bgr:hover{background:#4fff5a}',
-  '.bgy{background:#1a1a2a;color:#888}.bgy:hover{color:#ccc}',
-  /* Modal */
-  '#mfl-modal{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.8);z-index:100000;display:flex;align-items:center;justify-content:center}',
-  '#mfl-modal-c{background:#0b0b18;border:1px solid #e2b714;border-radius:8px;max-width:90vw;max-height:80vh;overflow-y:auto;padding:14px;min-width:600px}',
-  '#mfl-modal h3{color:#e2b714;font-size:14px;margin-bottom:10px}',
-  '#mfl-modal table{width:100%;border-collapse:collapse;font-size:11px}',
-  '#mfl-modal th{text-align:left;color:#666;font-weight:400;padding:4px;border-bottom:1px solid #1c1c32;font-size:9px;text-transform:uppercase}',
-  '#mfl-modal td{padding:4px;border-bottom:1px solid #131325}',
-  '#mfl-modal tr:hover{background:#111128}',
-  '#mfl-modal .stnum{text-align:center;font-weight:600}',
-  '#mfl-modal .closeb{position:absolute;top:10px;right:10px;cursor:pointer;color:#666}'
+  '.bbl{background:#169fed;color:#fff}.bbl:hover{background:#1ab0ff;transform:translateY(-1px)}',
+  '.bgr{background:#3af24b;color:#0a0a14}.bgr:hover{background:#4fff5a;transform:translateY(-1px)}',
+  '.bgy{background:transparent;color:#6a6a7a;font-size:14px;padding:4px 8px}.bgy:hover{color:#fff}',
+
+  /* Modal - style MFL pop-up */
+  '#mfl-modal{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.85);z-index:100000;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px)}',
+  '#mfl-modal-c{background:#0e0e1a;border:1px solid #232336;border-radius:10px;max-width:95vw;max-height:85vh;overflow-y:auto;padding:18px;min-width:780px;box-shadow:0 10px 40px rgba(0,0,0,.6)}',
+  '#mfl-modal h3{color:#e2b714;font-size:15px;margin-bottom:14px;font-weight:700}',
+  '#mfl-modal table{width:100%;border-collapse:separate;border-spacing:0 2px;font-size:11px}',
+  '#mfl-modal th{text-align:center;color:#6a6a7a;font-weight:600;padding:6px 4px;font-size:10px;text-transform:uppercase;letter-spacing:.5px}',
+  '#mfl-modal th.l{text-align:left}',
+  '#mfl-modal td{padding:6px 4px;background:#13131f}',
+  '#mfl-modal tr.r{cursor:pointer;transition:background .15s}',
+  '#mfl-modal tr.r:hover td{background:#1f1f33}',
+  '#mfl-modal tr.r td:first-child{border-radius:5px 0 0 5px}',
+  '#mfl-modal tr.r td:last-child{border-radius:0 5px 5px 0}',
+  '#mfl-modal .stnum{text-align:center}',
+  '#mfl-modal .closeb{position:absolute;top:14px;right:14px;cursor:pointer;color:#6a6a7a;font-size:18px;background:none;border:none;padding:4px}',
+  '#mfl-modal .closeb:hover{color:#fff}'
 ].join('');
 document.head.appendChild(st);
 
@@ -594,7 +634,7 @@ window.mflGen=function(){
     var usedPlayerIds=new Set();
     allSlots.forEach(function(s){if(s.player)usedPlayerIds.add(s.player.id);});
 
-    function statCell(v){return '<span class="c-stat" style="color:'+oc(v||0)+'">'+(v||0)+'</span>';}
+    function statCell(v){return '<span class="c-stat"><span class="stbox '+ocTier(v||0)+'">'+(v||0)+'</span></span>';}
 
     Object.keys(groups).forEach(function(grp){
       html+='<div class="mg"><div class="mg-t">'+grp+'  <span style="cursor:pointer;color:#3af24b;font-weight:700;margin-left:8px;font-size:14px" onclick="mflAddExtra(\''+grp.replace(/'/g,"\\'")+'\')" title="Ajouter un remplaçant">+</span></div></div>';
@@ -635,8 +675,8 @@ window.mflGen=function(){
           statCell(m.pace)+statCell(m.shooting)+statCell(m.passing)+
           statCell(m.dribbling)+statCell(m.defense)+statCell(m.physical)+
           '<span class="c-age" style="color:'+ageC+'">'+age+'</span>'+
-          '<span class="c-ovr" style="color:'+oc(ovr)+'">'+ovr+'</span>'+
-          '<span class="c-sc" style="color:'+oc(sl.sc)+'">'+sl.sc+'</span>'+
+          '<span class="c-ovr"><span class="ovrbox '+ocTier(ovr)+'">'+ovr+'</span></span>'+
+          '<span class="c-sc"><span class="scbox '+ocTier(sl.sc)+'">'+sl.sc+'</span></span>'+
           '<span class="c-act">'+
             (nbAlt>0?'<button class="btn bsw" title="'+nbAlt+' alternatives" onclick="mflOpenSwap('+sl.player.id+',\''+slotTarget+'\')">🔄</button>':'')+
             '<span style="color:'+(sl.role==='Tit.'?'#e2b714':'#555')+';font-size:9px;font-weight:700">'+sl.role+'</span> '+
@@ -649,7 +689,7 @@ window.mflGen=function(){
     var ain=allP.filter(function(p){return signedIds.has(p.id);});
     if(ain.length){
       html+='<div class="mg" style="margin-top:5px"><div class="mg-t" style="color:#2a4a2a">✅ Déjà dans le club ('+ain.length+')</div></div>';
-      ain.forEach(function(p){var m=p.metadata||{};html+='<div class="pr" style="opacity:.4"><span class="c-pos"><span class="pp PRIMARY">'+(m.positions||['?'])[0]+'</span></span><span class="c-slot"></span><span class="c-name">'+(m.firstName&&m.firstName[0]||'')+'. '+(m.lastName||'?')+'</span><span class="c-stat">'+(m.pace||0)+'</span><span class="c-stat">'+(m.shooting||0)+'</span><span class="c-stat">'+(m.passing||0)+'</span><span class="c-stat">'+(m.dribbling||0)+'</span><span class="c-stat">'+(m.defense||0)+'</span><span class="c-stat">'+(m.physical||0)+'</span><span class="c-age">'+(m.age||'?')+'</span><span class="c-ovr" style="color:'+oc(m.overall||0)+'">'+(m.overall||'?')+'</span><span class="c-sc"></span><span class="c-act"><span class="btn bok">✅</span></span></div>';});
+      ain.forEach(function(p){var m=p.metadata||{};html+='<div class="pr" style="opacity:.45"><span class="c-pos"><span class="pp PRIMARY">'+(m.positions||['?'])[0]+'</span></span><span class="c-slot"></span><span class="c-name">'+(m.firstName&&m.firstName[0]||'')+'. '+(m.lastName||'?')+'</span>'+statCell(m.pace)+statCell(m.shooting)+statCell(m.passing)+statCell(m.dribbling)+statCell(m.defense)+statCell(m.physical)+'<span class="c-age">'+(m.age||'?')+'</span><span class="c-ovr"><span class="ovrbox '+ocTier(m.overall||0)+'">'+(m.overall||'?')+'</span></span><span class="c-sc"></span><span class="c-act"><span class="btn bok">✅</span></span></div>';});
     }
     bd.innerHTML=html;
     document.getElementById('mfl-all-btn').style.display='';
@@ -798,20 +838,20 @@ function mflShowModal(title,cands,slot,oldPlayerId,extraGrp){
       else if(ry===3)ret=' <span style="color:#e2b714">⏳3</span>';
       var fam=getFam(p,targetSlot);
       var famC={PRIMARY:'#3af24b',SECONDARY:'#FFCC00',FAIRLY_FAMILIAR:'#ff9900',SOMEWHAT_FAMILIAR:'#ff5500',UNFAMILIAR:'#666'}[fam]||'#666';
-      rows+='<tr style="cursor:pointer" onclick="mflPickFromModal('+p.id+',\''+targetSlot+'\','+(oldPlayerId||'null')+',\''+(extraGrp||'').replace(/\\\\/g,"\\\\\\\\").replace(/'/g,"\\x27")+'\')">'+
-        '<td><span class="pp" style="background:#1a1a2a;color:'+famC+';padding:1px 4px;border-radius:3px;font-size:9px">'+(m.positions||['?'])[0]+'</span></td>'+
-        '<td style="color:#ccc">'+(m.firstName||'')+' '+(m.lastName||'?')+ret+'</td>'+
-        '<td style="font-size:9px;color:#666">'+(m.positions||[]).join('/')+'</td>'+
-        '<td class="stnum" style="color:'+oc(m.pace||0)+'">'+(m.pace||0)+'</td>'+
-        '<td class="stnum" style="color:'+oc(m.shooting||0)+'">'+(m.shooting||0)+'</td>'+
-        '<td class="stnum" style="color:'+oc(m.passing||0)+'">'+(m.passing||0)+'</td>'+
-        '<td class="stnum" style="color:'+oc(m.dribbling||0)+'">'+(m.dribbling||0)+'</td>'+
-        '<td class="stnum" style="color:'+oc(m.defense||0)+'">'+(m.defense||0)+'</td>'+
-        '<td class="stnum" style="color:'+oc(m.physical||0)+'">'+(m.physical||0)+'</td>'+
-        '<td class="stnum">'+(m.age||'?')+'</td>'+
-        '<td class="stnum" style="color:'+oc(m.overall||0)+'">'+m.overall+'</td>'+
-        '<td class="stnum" style="color:'+oc(sc)+';font-weight:700">'+sc+'</td>'+
-        '<td><span style="font-size:9px;color:'+famC+'">'+fam.replace('_',' ')+'</span></td>'+
+      rows+='<tr class="r" onclick="mflPickFromModal('+p.id+',\''+targetSlot+'\','+(oldPlayerId||'null')+',\''+(extraGrp||'').replace(/\\\\/g,"\\\\\\\\").replace(/'/g,"\\x27")+'\')">'+
+        '<td><span class="pp '+fam+'">'+(m.positions||['?'])[0]+'</span></td>'+
+        '<td style="color:#e8e8ec;font-weight:500">'+(m.firstName||'')+' '+(m.lastName||'?')+ret+'</td>'+
+        '<td style="font-size:10px;color:#6a6a7a">'+(m.positions||[]).join('/')+'</td>'+
+        '<td class="stnum"><span class="stbox '+ocTier(m.pace||0)+'">'+(m.pace||0)+'</span></td>'+
+        '<td class="stnum"><span class="stbox '+ocTier(m.shooting||0)+'">'+(m.shooting||0)+'</span></td>'+
+        '<td class="stnum"><span class="stbox '+ocTier(m.passing||0)+'">'+(m.passing||0)+'</span></td>'+
+        '<td class="stnum"><span class="stbox '+ocTier(m.dribbling||0)+'">'+(m.dribbling||0)+'</span></td>'+
+        '<td class="stnum"><span class="stbox '+ocTier(m.defense||0)+'">'+(m.defense||0)+'</span></td>'+
+        '<td class="stnum"><span class="stbox '+ocTier(m.physical||0)+'">'+(m.physical||0)+'</span></td>'+
+        '<td class="stnum" style="color:#d8d8e0;font-weight:600">'+(m.age||'?')+'</td>'+
+        '<td class="stnum"><span class="ovrbox '+ocTier(m.overall||0)+'">'+m.overall+'</span></td>'+
+        '<td class="stnum"><span class="scbox '+ocTier(sc)+'">'+sc+'</span></td>'+
+        '<td><span style="font-size:9px;color:'+famC+';font-weight:600">'+fam.replace('_',' ')+'</span></td>'+
         '</tr>';
     });
   }
@@ -819,7 +859,7 @@ function mflShowModal(title,cands,slot,oldPlayerId,extraGrp){
   div.id='mfl-modal';
   div.onclick=function(e){if(e.target===div)div.remove();};
   div.innerHTML='<div id="mfl-modal-c" style="position:relative">'+
-    '<span class="closeb" onclick="document.getElementById(\'mfl-modal\').remove()">✕</span>'+
+    '<button class="closeb" onclick="document.getElementById(\'mfl-modal\').remove()">✕</button>'+
     '<h3>'+title+' ('+cands.length+' joueurs)</h3>'+
     '<table><thead><tr>'+
       '<th>Pos</th><th>Nom</th><th>Postes</th>'+
