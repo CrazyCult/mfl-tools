@@ -366,7 +366,7 @@ st.textContent=[
   '#mfl-bar h2{color:#e2b714;font-size:14px;font-weight:700;margin-right:auto}',
   '.ms{background:#0a0a14;border:1px solid #232336;color:#d8d8e0;border-radius:6px;padding:4px 8px;font-size:12px;max-width:160px}',
   '.mn{background:#0a0a14;border:1px solid #232336;color:#d8d8e0;border-radius:6px;padding:4px 8px;font-size:12px;width:50px}',
-  '#mfl-st{padding:6px 14px;font-size:10px;color:#6a6a7a;border-bottom:1px solid #1c1c2e;flex-shrink:0;background:#0a0a14}',
+  '#mfl-st{padding:8px 14px;font-size:11px;color:#9a9aab;border-bottom:1px solid #1c1c2e;flex-shrink:0;background:#0a0a14;line-height:1.5}',
   '#mfl-bd{overflow-y:auto;flex:1;scrollbar-width:thin;scrollbar-color:#232336 transparent}',
   '.mg{padding:6px 14px 0}',
   '.mg-t{font-size:10px;color:#6a6a7a;text-transform:uppercase;letter-spacing:.8px;padding:6px 0 4px;border-bottom:1px solid #1c1c2e;font-weight:600}',
@@ -546,7 +546,7 @@ window.mflGen=function(){
     if(excludedPlayers.con.length)console.log('[MFL] Exclus par CONTRAT:',excludedPlayers.con);
     if(excludedPlayers.ret.length)console.log('[MFL] Exclus par RETRAITE:',excludedPlayers.ret);
     var baseStatus=allP.length+' joueurs / '+avail.length+' dispo / '+signedIds.size+' signés / Club '+clubId+(window._MT?' / 🔑 Token OK':' / ⚠️ Pas de token');
-    document.getElementById('mfl-st').textContent=window._mflSuggestMsg||baseStatus;
+    document.getElementById('mfl-st').innerHTML=window._mflSuggestMsg||baseStatus;
     window._mflSuggestMsg=null;
     if(avail.length<11){bd.innerHTML='<div style="padding:10px 12px;color:#ff5555">Seulement '+avail.length+' joueurs dispo — élargis OVR</div>';return;}
 
@@ -614,8 +614,8 @@ window.mflGen=function(){
     var p=gP();
     var cs=p.clauses.length?' / min '+p.clauses[0].nbMatches+'m pén.'+p.clauses[0].revenueSharePenalty/100+'%':'';
     var emptyCount=allSlots.filter(function(s){return s._empty;}).length;
-    // En-tête colonnes (utilise les mêmes classes flex que les lignes)
-    var html='<div class="pr" style="font-size:9px;color:#333;border-bottom:1px solid #1c1c32;padding-top:6px">'+
+    // En-tête colonnes - lisible (style nom joueur)
+    var html='<div class="pr" style="font-size:11px;color:#9a9aab;font-weight:600;border-bottom:1px solid #232336;padding:8px 14px;background:#13131f">'+
       '<span class="c-pos">Poste</span>'+
       '<span class="c-slot">Slot</span>'+
       '<span class="c-name">Joueur</span>'+
@@ -629,7 +629,8 @@ window.mflGen=function(){
       '<span class="c-ovr">OVR</span>'+
       '<span class="c-sc">Sc.</span>'+
       '<span class="c-act"></span></div>';
-    html+='<div style="padding:3px 12px 5px;font-size:10px;color:#555;border-bottom:1px solid #131325">'+p.revenueShare/100+'% rev / '+p.nbSeasons+' saison(s) / exp.'+p.expirationDelay+'j'+(p.autoRenewByDefault?' / ♻️':'')+cs+(emptyCount>0?' / ⚠️ '+emptyCount+' slot(s) vide(s)':'')+'</div>';
+    // Ligne contrat - lisible
+    html+='<div style="padding:6px 14px;font-size:11px;color:#9a9aab;border-bottom:1px solid #1c1c2e;background:#0a0a14">📋 '+p.revenueShare/100+'% revenus · '+p.nbSeasons+' saison(s) · expire '+p.expirationDelay+'j'+(p.autoRenewByDefault?' · ♻️ auto-renew':'')+cs+(emptyCount>0?' · <span style="color:#ff9966">⚠️ '+emptyCount+' slot(s) vide(s)</span>':'')+'</div>';
 
     var usedPlayerIds=new Set();
     allSlots.forEach(function(s){if(s.player)usedPlayerIds.add(s.player.id);});
@@ -743,14 +744,20 @@ window.mflSuggest=function(){
         sel.selectedIndex=i;break;
       }
     }
-    // Mémorise le message pour qu'il survive à mflGen
-    var msg='🎯 Choisi: '+best.name+' ('+best.filled+'/11 natifs, sc~'+best.avg+') | Top5: '+
-      top5.slice(1).map(function(r){return r.name+'('+r.filled+'/'+r.avg+')';}).join(' / ');
+    // Message clair : formation choisie + alternatives
+    var msg='🎯 Meilleure formation : <b style="color:#e2b714">'+best.name+'</b> '+
+      '<span style="color:#9a9aab">('+best.filled+'/11 postes remplis, note moyenne '+best.avg+')</span>';
+    if(top5.length>1){
+      msg+='<span style="color:#6a6a7a"> · Alternatives : </span>';
+      msg+=top5.slice(1).map(function(r){
+        return '<span style="color:#9a9aab">'+r.name+'</span> <span style="color:#6a6a7a">('+r.filled+'/11, note '+r.avg+')</span>';
+      }).join('<span style="color:#3a3a4a"> · </span>');
+    }
     window._mflSuggestMsg=msg;
     // Flash visuel sur le select
     sel.style.boxShadow='0 0 8px #e2b714';sel.style.borderColor='#e2b714';
     setTimeout(function(){sel.style.boxShadow='';sel.style.borderColor='';},1500);
-    document.getElementById('mfl-st').textContent=msg;
+    document.getElementById('mfl-st').innerHTML=msg;
     window.mflGen();
   }).catch(function(e){document.getElementById('mfl-st').textContent='Erreur: '+e.message;console.error('[MFL]',e);});
 };
