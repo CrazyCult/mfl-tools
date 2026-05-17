@@ -369,27 +369,40 @@ st.textContent=[
   '#mfl-bd{overflow-y:auto;flex:1;scrollbar-width:thin;scrollbar-color:#1c1c32 transparent}',
   '.mg{padding:3px 12px 0}',
   '.mg-t{font-size:9px;color:#444;text-transform:uppercase;letter-spacing:.6px;padding:3px 0 2px;border-bottom:1px solid #131325}',
-  '.pr{display:grid;grid-template-columns:38px 28px 1fr 22px 22px 22px 22px 22px 22px 24px 28px 28px 90px;gap:3px;padding:2px 12px;align-items:center;border-bottom:1px solid #0d0d1a}',
+  '.pr{display:flex;align-items:center;padding:2px 12px;border-bottom:1px solid #0d0d1a;gap:6px;font-size:11px}',
   '.pr:hover{background:#0d0d1f}',
-  '.pp{font-size:9px;font-weight:700;background:#1a1a2a;border-radius:3px;padding:1px 3px;text-align:center;color:#555}',
+  '.pr>.c-pos{flex:0 0 40px;text-align:center}',
+  '.pr>.c-slot{flex:0 0 30px;text-align:center;font-size:9px;color:#444}',
+  '.pr>.c-name{flex:1 1 auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#ccc;min-width:160px}',
+  '.pr>.c-stat{flex:0 0 26px;text-align:center;font-weight:600;font-size:10px}',
+  '.pr>.c-age{flex:0 0 26px;text-align:center;font-weight:600;font-size:10px}',
+  '.pr>.c-ovr{flex:0 0 30px;text-align:right;font-weight:700}',
+  '.pr>.c-sc{flex:0 0 30px;text-align:right;font-size:10px}',
+  '.pr>.c-act{flex:0 0 110px;display:flex;justify-content:flex-end;gap:4px;align-items:center}',
+  '.pp{font-size:9px;font-weight:700;background:#1a1a2a;border-radius:3px;padding:1px 4px;text-align:center;color:#555;display:inline-block;min-width:30px}',
   '.pp.PRIMARY{color:#3af24b;background:#0d1f0d}',
   '.pp.SECONDARY{color:#FFCC00;background:#1a1800}',
   '.pp.FAIRLY_FAMILIAR{color:#ff9900;background:#1a0f00}',
   '.pp.SOMEWHAT_FAMILIAR{color:#ff5500;background:#200800}',
   '.pp.UNFAMILIAR{color:#666;background:#111}',
-  '.pslot{font-size:8px;color:#333;text-align:center}',
-  '.pn{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#ccc}',
-  '.pa{text-align:center;font-size:10px;font-weight:600}',
-  '.ph{text-align:center;font-size:9px;color:#555}',
-  '.po{font-weight:700;text-align:right}.psc{font-size:10px;text-align:right}',
-  '.pac{display:flex;gap:3px;justify-content:flex-end;align-items:center}',
   '.btn{border:none;border-radius:4px;padding:2px 8px;font-size:10px;font-weight:700;cursor:pointer;white-space:nowrap}',
   '.bs{background:#e2b714;color:#0b0b18}.bs:hover{background:#f0c830}',
+  '.bsw{background:#169fed;color:#fff;padding:2px 6px;font-size:9px}.bsw:hover{background:#1ab0ff}',
   '.bok{background:#1a3a1a;color:#3af24b;cursor:default;pointer-events:none}',
   '.bw{background:#333;color:#666;cursor:wait}.be{background:#3a0d0d;color:#ff5555}',
   '.bbl{background:#169fed;color:#fff}.bbl:hover{background:#1ab0ff}',
   '.bgr{background:#3af24b;color:#0b0b18}.bgr:hover{background:#4fff5a}',
-  '.bgy{background:#1a1a2a;color:#888}.bgy:hover{color:#ccc}'
+  '.bgy{background:#1a1a2a;color:#888}.bgy:hover{color:#ccc}',
+  /* Modal */
+  '#mfl-modal{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.8);z-index:100000;display:flex;align-items:center;justify-content:center}',
+  '#mfl-modal-c{background:#0b0b18;border:1px solid #e2b714;border-radius:8px;max-width:90vw;max-height:80vh;overflow-y:auto;padding:14px;min-width:600px}',
+  '#mfl-modal h3{color:#e2b714;font-size:14px;margin-bottom:10px}',
+  '#mfl-modal table{width:100%;border-collapse:collapse;font-size:11px}',
+  '#mfl-modal th{text-align:left;color:#666;font-weight:400;padding:4px;border-bottom:1px solid #1c1c32;font-size:9px;text-transform:uppercase}',
+  '#mfl-modal td{padding:4px;border-bottom:1px solid #131325}',
+  '#mfl-modal tr:hover{background:#111128}',
+  '#mfl-modal .stnum{text-align:center;font-weight:600}',
+  '#mfl-modal .closeb{position:absolute;top:10px;right:10px;cursor:pointer;color:#666}'
 ].join('');
 document.head.appendChild(st);
 
@@ -561,91 +574,82 @@ window.mflGen=function(){
     var p=gP();
     var cs=p.clauses.length?' / min '+p.clauses[0].nbMatches+'m pén.'+p.clauses[0].revenueSharePenalty/100+'%':'';
     var emptyCount=allSlots.filter(function(s){return s._empty;}).length;
-    var html='<div class="pr" style="font-size:9px;color:#333;padding-top:4px;grid-template-columns:38px 28px 1fr 18px 18px 18px 18px 18px 18px 22px 26px 26px 90px"><span>Poste</span><span>Slot</span><span>Joueur</span><span title="Pace">PAC</span><span title="Shooting">SHO</span><span title="Passing">PAS</span><span title="Dribbling">DRI</span><span title="Defense">DEF</span><span title="Physical">PHY</span><span>Âge</span><span>OVR</span><span>Sc.</span><span></span></div>';
-    html+='<div style="padding:3px 12px 5px;font-size:10px;color:#555;border-bottom:1px solid #131325">'+p.revenueShare/100+'% rev / '+p.nbSeasons+' saison(s) / exp.'+p.expirationDelay+'j'+(p.autoRenewByDefault?' / ♻️':'')+cs+(emptyCount>0?' / ⚠️ '+emptyCount+' slot(s) vide(s) - pas de joueur natif':'')+'</div>';
+    // En-tête colonnes (utilise les mêmes classes flex que les lignes)
+    var html='<div class="pr" style="font-size:9px;color:#333;border-bottom:1px solid #1c1c32;padding-top:6px">'+
+      '<span class="c-pos">Poste</span>'+
+      '<span class="c-slot">Slot</span>'+
+      '<span class="c-name">Joueur</span>'+
+      '<span class="c-stat" title="Pace">PAC</span>'+
+      '<span class="c-stat" title="Shooting">SHO</span>'+
+      '<span class="c-stat" title="Passing">PAS</span>'+
+      '<span class="c-stat" title="Dribbling">DRI</span>'+
+      '<span class="c-stat" title="Defense">DEF</span>'+
+      '<span class="c-stat" title="Physical">PHY</span>'+
+      '<span class="c-age">Âge</span>'+
+      '<span class="c-ovr">OVR</span>'+
+      '<span class="c-sc">Sc.</span>'+
+      '<span class="c-act"></span></div>';
+    html+='<div style="padding:3px 12px 5px;font-size:10px;color:#555;border-bottom:1px solid #131325">'+p.revenueShare/100+'% rev / '+p.nbSeasons+' saison(s) / exp.'+p.expirationDelay+'j'+(p.autoRenewByDefault?' / ♻️':'')+cs+(emptyCount>0?' / ⚠️ '+emptyCount+' slot(s) vide(s)':'')+'</div>';
 
-    // IDs des joueurs déjà utilisés dans la compo (pour exclure du dropdown)
     var usedPlayerIds=new Set();
     allSlots.forEach(function(s){if(s.player)usedPlayerIds.add(s.player.id);});
 
+    function statCell(v){return '<span class="c-stat" style="color:'+oc(v||0)+'">'+(v||0)+'</span>';}
+
     Object.keys(groups).forEach(function(grp){
-      html+='<div class="mg"><div class="mg-t">'+grp+'  <span style="cursor:pointer;color:#3af24b;font-weight:700;margin-left:8px" onclick="mflAddExtra(\''+grp.replace(/'/g,"\\'")+'\')" title="Ajouter un remplaçant">+</span></div></div>';
-      groups[grp].forEach(function(sl,slIdx){
-        // Slot vide
+      html+='<div class="mg"><div class="mg-t">'+grp+'  <span style="cursor:pointer;color:#3af24b;font-weight:700;margin-left:8px;font-size:14px" onclick="mflAddExtra(\''+grp.replace(/'/g,"\\'")+'\')" title="Ajouter un remplaçant">+</span></div></div>';
+      groups[grp].forEach(function(sl){
         if(sl._empty){
-          // Dropdown vide aussi pour permettre d'ajouter manuellement
-          var natives=avail.filter(function(p){return!usedPlayerIds.has(p.id)&&isNative(p,sl.slotPos);});
-          natives.sort(function(a,b){return calcScore(b,sl.slotPos)-calcScore(a,sl.slotPos);});
-          var dropOpts='<option value="">— vide —</option>';
-          natives.forEach(function(p){
-            var mm=p.metadata||{};
-            dropOpts+='<option value="'+p.id+'">'+(mm.firstName&&mm.firstName[0]||'')+'.'+(mm.lastName||'?')+' ('+(mm.positions||[]).join('/')+', OVR'+mm.overall+', sc:'+calcScore(p,sl.slotPos)+')</option>';
-          });
-          html+='<div class="pr" style="opacity:.6;background:#1a0a0a;grid-template-columns:38px 28px 1fr 18px 18px 18px 18px 18px 18px 22px 26px 26px 90px">'+
-            '<span class="pp UNFAMILIAR">—</span>'+
-            '<span class="pslot">'+sl.slotPos+'</span>'+
-            '<select style="background:#0d0d1a;border:1px solid #1c1c32;color:#ff9966;font-size:11px;padding:1px 3px;width:100%" onchange="mflPickPlayer(this,\''+sl.slotPos+'\')">'+dropOpts+'</select>'+
-            '<span></span><span></span><span></span><span></span><span></span><span></span>'+
-            '<span></span><span></span><span></span><span></span>'+
+          html+='<div class="pr" style="background:#1a0a0a">'+
+            '<span class="c-pos"><span class="pp UNFAMILIAR">—</span></span>'+
+            '<span class="c-slot">'+sl.slotPos+'</span>'+
+            '<span class="c-name" style="color:#ff5555;font-style:italic">⚠️ Aucun joueur natif</span>'+
+            '<span class="c-stat"></span><span class="c-stat"></span><span class="c-stat"></span>'+
+            '<span class="c-stat"></span><span class="c-stat"></span><span class="c-stat"></span>'+
+            '<span class="c-age"></span><span class="c-ovr"></span><span class="c-sc"></span>'+
+            '<span class="c-act"><button class="btn bsw" onclick="mflOpenSwap(null,\''+sl.slotPos+'\')">🔄 Choisir</button></span>'+
             '</div>';
           return;
         }
-
         var m=sl.player.metadata||{},ovr=m.overall||0;
-        var nm=(m.firstName&&m.firstName[0]||'')+'.'+(m.lastName||'?');
+        var nm=(m.firstName&&m.firstName[0]||'')+'. '+(m.lastName||'?');
         var age=m.age||'?';
         var allPos=(m.positions||[]).join('/');
         var ry=m.retirementYears;
         var retBadge='';
-        if(ry===1)retBadge=' <span style="color:#ff3333;font-weight:700" title="1 saison restante">⏳1</span>';
-        else if(ry===2)retBadge=' <span style="color:#ff9900;font-weight:700" title="2 saisons restantes">⏳2</span>';
-        else if(ry===3)retBadge=' <span style="color:#e2b714;font-weight:700" title="3 saisons restantes">⏳3</span>';
+        if(ry===1)retBadge=' <span style="color:#ff3333;font-weight:700" title="1 saison">⏳1</span>';
+        else if(ry===2)retBadge=' <span style="color:#ff9900;font-weight:700" title="2 saisons">⏳2</span>';
+        else if(ry===3)retBadge=' <span style="color:#e2b714;font-weight:700" title="3 saisons">⏳3</span>';
         var ageC=sl.role==='Tit.'?(age<23?'#3af24b':age>30?'#ff9900':'#888'):(age>32?'#ff9900':'#888');
         var signed=signedIds.has(sl.player.id);
-        var famCls=sl.fam==='poly'?'':sl.fam||'UNFAMILIAR';
+        var famCls=sl.fam||'UNFAMILIAR';
 
-        // Alternatives pour ce slot (natifs au slot, pas déjà utilisés)
+        // Compte alternatives
         var slotTarget=sl.slotPos;
-        var alts=avail.filter(function(p){return p.id!==sl.player.id&&!usedPlayerIds.has(p.id)&&isNative(p,slotTarget);});
-        alts.sort(function(a,b){return calcScore(b,slotTarget)-calcScore(a,slotTarget);});
-        // Limite à 10 alternatives
-        alts=alts.slice(0,10);
-        var dropdown='';
-        if(alts.length>0){
-          dropdown='<option value="">'+nm+' ✓</option>';
-          alts.forEach(function(p){
-            var mm=p.metadata||{};
-            dropdown+='<option value="'+p.id+'">'+(mm.firstName&&mm.firstName[0]||'')+'.'+(mm.lastName||'?')+' ('+(mm.positions||[]).join('/')+', OVR'+mm.overall+', sc:'+calcScore(p,slotTarget)+')</option>';
-          });
-        }
+        var nbAlt=avail.filter(function(p){return p.id!==sl.player.id&&!usedPlayerIds.has(p.id)&&isNative(p,slotTarget);}).length;
 
-        var playerCell=alts.length>0
-          ? '<select style="background:#0d0d1a;border:1px solid #1c1c32;color:#ccc;font-size:11px;padding:1px 3px;max-width:200px" onchange="mflSwap(this,'+sl.player.id+',\''+slotTarget+'\')">'+dropdown+'</select>'+retBadge+' <span style="color:#2a2a3a;font-size:9px">'+allPos+'</span>'
-          : '<span class="pn" title="'+allPos+'">'+nm+retBadge+' <span style="color:#2a2a3a;font-size:9px">'+allPos+'</span></span>';
-
-        html+='<div class="pr" style="grid-template-columns:38px 28px 1fr 18px 18px 18px 18px 18px 18px 22px 26px 26px 90px">'+
-          '<span class="pp '+famCls+'" title="'+sl.pos+' → '+sl.slotPos+' ('+sl.fam+')">'+sl.pos+'</span>'+
-          '<span class="pslot">'+sl.slotPos+'</span>'+
-          playerCell+
-          '<span class="pa" style="color:'+oc(m.pace||0)+'">'+(m.pace||0)+'</span>'+
-          '<span class="pa" style="color:'+oc(m.shooting||0)+'">'+(m.shooting||0)+'</span>'+
-          '<span class="pa" style="color:'+oc(m.passing||0)+'">'+(m.passing||0)+'</span>'+
-          '<span class="pa" style="color:'+oc(m.dribbling||0)+'">'+(m.dribbling||0)+'</span>'+
-          '<span class="pa" style="color:'+oc(m.defense||0)+'">'+(m.defense||0)+'</span>'+
-          '<span class="pa" style="color:'+oc(m.physical||0)+'">'+(m.physical||0)+'</span>'+
-          '<span class="pa" style="color:'+ageC+'">'+age+'</span>'+
-          '<span class="po" style="color:'+oc(ovr)+'">'+ovr+'</span>'+
-          '<span class="psc" style="color:'+oc(sl.sc)+'">'+sl.sc+'</span>'+
-          '<span class="pac"><span style="color:'+(sl.role==='Tit.'?'#e2b714':'#555')+';font-size:9px;font-weight:700">'+sl.role+'</span> '+
-          (signed?'<span class="btn bok">✅</span>':'<button class="btn bs" data-pid="'+sl.player.id+'" onclick="mflSign('+sl.player.id+',this)">Signer</button>')+
-          '</span></div>';
+        html+='<div class="pr">'+
+          '<span class="c-pos"><span class="pp '+famCls+'" title="'+sl.pos+' → '+sl.slotPos+' ('+sl.fam+')">'+sl.pos+'</span></span>'+
+          '<span class="c-slot">'+sl.slotPos+'</span>'+
+          '<span class="c-name" title="'+allPos+'">'+nm+retBadge+' <span style="color:#444;font-size:9px">'+allPos+'</span></span>'+
+          statCell(m.pace)+statCell(m.shooting)+statCell(m.passing)+
+          statCell(m.dribbling)+statCell(m.defense)+statCell(m.physical)+
+          '<span class="c-age" style="color:'+ageC+'">'+age+'</span>'+
+          '<span class="c-ovr" style="color:'+oc(ovr)+'">'+ovr+'</span>'+
+          '<span class="c-sc" style="color:'+oc(sl.sc)+'">'+sl.sc+'</span>'+
+          '<span class="c-act">'+
+            (nbAlt>0?'<button class="btn bsw" title="'+nbAlt+' alternatives" onclick="mflOpenSwap('+sl.player.id+',\''+slotTarget+'\')">🔄</button>':'')+
+            '<span style="color:'+(sl.role==='Tit.'?'#e2b714':'#555')+';font-size:9px;font-weight:700">'+sl.role+'</span> '+
+            (signed?'<span class="btn bok">✅</span>':'<button class="btn bs" data-pid="'+sl.player.id+'" onclick="mflSign('+sl.player.id+',this)">Signer</button>')+
+          '</span>'+
+          '</div>';
       });
     });
 
     var ain=allP.filter(function(p){return signedIds.has(p.id);});
     if(ain.length){
       html+='<div class="mg" style="margin-top:5px"><div class="mg-t" style="color:#2a4a2a">✅ Déjà dans le club ('+ain.length+')</div></div>';
-      ain.forEach(function(p){var m=p.metadata||{};html+='<div class="pr" style="opacity:.3"><span class="pp PRIMARY">'+(m.positions||['?'])[0]+'</span><span></span><span class="pn">'+(m.firstName&&m.firstName[0]||'')+'. '+(m.lastName||'?')+'</span><span class="pa">'+(m.pace||0)+'</span><span class="pa">'+(m.shooting||0)+'</span><span class="pa">'+(m.passing||0)+'</span><span class="pa">'+(m.dribbling||0)+'</span><span class="pa">'+(m.defense||0)+'</span><span class="pa">'+(m.physical||0)+'</span><span class="pa">'+(m.age||'?')+'</span><span class="po" style="color:'+oc(m.overall||0)+'">'+(m.overall||'?')+'</span><span></span><span class="pac"><span class="btn bok">✅</span></span></div>';});
+      ain.forEach(function(p){var m=p.metadata||{};html+='<div class="pr" style="opacity:.4"><span class="c-pos"><span class="pp PRIMARY">'+(m.positions||['?'])[0]+'</span></span><span class="c-slot"></span><span class="c-name">'+(m.firstName&&m.firstName[0]||'')+'. '+(m.lastName||'?')+'</span><span class="c-stat">'+(m.pace||0)+'</span><span class="c-stat">'+(m.shooting||0)+'</span><span class="c-stat">'+(m.passing||0)+'</span><span class="c-stat">'+(m.dribbling||0)+'</span><span class="c-stat">'+(m.defense||0)+'</span><span class="c-stat">'+(m.physical||0)+'</span><span class="c-age">'+(m.age||'?')+'</span><span class="c-ovr" style="color:'+oc(m.overall||0)+'">'+(m.overall||'?')+'</span><span class="c-sc"></span><span class="c-act"><span class="btn bok">✅</span></span></div>';});
     }
     bd.innerHTML=html;
     document.getElementById('mfl-all-btn').style.display='';
@@ -735,68 +739,30 @@ window.mflSignAll=function(){
   next();
 };
 
-// Échange un joueur pour un slot donné (dropdown)
-window.mflSwap=function(sel,oldPlayerId,slot){
-  var newPid=parseInt(sel.value);
-  if(!newPid){sel.value='';return;} // user a remis l'option par défaut, on ne change rien
+// Ouvre la modale de remplacement pour un slot (oldPlayerId peut être null pour slot vide)
+window.mflOpenSwap=function(oldPlayerId,slot){
   var st=window._mflState;if(!st)return;
-  // Remplace dans starters
-  for(var i=0;i<st.starters.length;i++){
-    if(st.starters[i]&&st.starters[i].player.id===oldPlayerId&&st.starters[i].slotPos===slot){
-      var newP=st.avail.find(function(p){return p.id===newPid;});
-      if(newP){
-        var pos=newP.metadata.positions||[];
-        st.starters[i]={player:newP,pos:pos[0]||slot,slotPos:slot,sc:calcScore(newP,slot),fam:getFam(newP,slot)};
-        // Force regen
-        window.mflGen();
-      }
-      return;
-    }
-  }
-  // Si pas trouvé dans starters, on regarde les remplaçants
-  Object.keys(st.bups).forEach(function(slotKey){
-    st.bups[slotKey]=st.bups[slotKey].filter(function(b){
-      if(b.player.id!==oldPlayerId)return true;
-      var newP=st.avail.find(function(p){return p.id===newPid;});
-      if(newP){
-        var pos=newP.metadata.positions||[];
-        st.bups[slotKey].push({player:newP,pos:pos[0]||slot,slotPos:slot,sc:calcScore(newP,slot),fam:getFam(newP,slot)});
-      }
-      return false;
-    });
-  });
-  window.mflGen();
+  var usedIds=new Set();
+  st.starters.forEach(function(s){if(s)usedIds.add(s.player.id);});
+  Object.values(st.bups).forEach(function(bb){bb.forEach(function(b){usedIds.add(b.player.id);});});
+  Object.keys(st.extras).forEach(function(g){st.extras[g].forEach(function(id){usedIds.add(id);});});
+  if(oldPlayerId)usedIds.delete(oldPlayerId); // on autorise le joueur actuel à apparaître
+  var cands=st.avail.filter(function(p){return!usedIds.has(p.id)&&isNative(p,slot);});
+  cands.sort(function(a,b){return calcScore(b,slot)-calcScore(a,slot);});
+  mflShowModal('Remplacer pour slot '+slot,cands,slot,oldPlayerId,null);
 };
 
-// Choisit un joueur pour un slot vide
-window.mflPickPlayer=function(sel,slot){
-  var pid=parseInt(sel.value);if(!pid)return;
-  var st=window._mflState;if(!st)return;
-  var newP=st.avail.find(function(p){return p.id===pid;});
-  if(!newP)return;
-  // Trouve le slot vide dans starters et le remplit
-  for(var i=0;i<st.starters.length;i++){
-    if(!st.starters[i]&&FORM[st.formation][i]===slot){
-      var pos=newP.metadata.positions||[];
-      st.starters[i]={player:newP,pos:pos[0]||slot,slotPos:slot,sc:calcScore(newP,slot),fam:getFam(newP,slot)};
-      window.mflGen();
-      return;
-    }
-  }
-};
-
-// Affiche une dropdown pour ajouter un joueur extra à un groupe
+// Ouvre la modale pour ajouter un extra dans un groupe (sans slot fixe)
 window.mflAddExtra=function(grp){
   var st=window._mflState;if(!st)return;
-  var GROUP_NATIVES={
+  var GROUP_SLOTS={
     '🥅 Gardiens':['GK','G'],
     '🛡️ Défenseurs':['CB','DC','LB','DG','RB','DD','LWB','DLG','RWB','DLD'],
     '⚙️ Milieux':['CDM','MDC','CM','MC','LM','MG','RM','MD'],
     '🎯 Offensifs':['MOC','CAM','AT','AG','LW','AD','RW'],
     '⚡ Attaquants':['ST','BU','CF']
   };
-  var slots=GROUP_NATIVES[grp]||[];
-  // Joueurs natifs dans ce groupe et non utilisés
+  var slots=GROUP_SLOTS[grp]||[];
   var usedIds=new Set();
   st.starters.forEach(function(s){if(s)usedIds.add(s.player.id);});
   Object.values(st.bups).forEach(function(bb){bb.forEach(function(b){usedIds.add(b.player.id);});});
@@ -805,26 +771,105 @@ window.mflAddExtra=function(grp){
     if(usedIds.has(p.id))return false;
     return slots.some(function(s){return isNative(p,s);});
   });
-  if(cands.length===0){alert('Aucun joueur natif disponible pour '+grp);return;}
-  // Trie par meilleur score sur le meilleur poste du groupe
-  cands.sort(function(a,b){
-    var sa=slots.reduce(function(m,s){return isNative(a,s)?Math.max(m,calcScore(a,s)):m;},0);
-    var sb=slots.reduce(function(m,s){return isNative(b,s)?Math.max(m,calcScore(b,s)):m;},0);
-    return sb-sa;
+  // Pour chaque candidat: meilleur score sur ses postes natifs du groupe
+  cands.forEach(function(p){
+    var bestSc=0,bestSlot=null;
+    slots.forEach(function(s){if(isNative(p,s)){var sc=calcScore(p,s);if(sc>bestSc){bestSc=sc;bestSlot=s;}}});
+    p._bestSlot=bestSlot;p._bestSc=bestSc;
   });
-  // Crée une dropdown modale rapide via prompt-like
-  var msg='Choisis le joueur à ajouter en remplaçant pour '+grp+':\n\n';
-  cands.slice(0,20).forEach(function(p,i){
-    var m=p.metadata;
-    msg+=(i+1)+'. '+(m.firstName||'')+' '+(m.lastName||'')+' ('+(m.positions||[]).join('/')+', OVR'+m.overall+', âge '+m.age+')\n';
-  });
-  msg+='\nTape le numéro (1-'+Math.min(20,cands.length)+') ou annule:';
-  var ans=prompt(msg);
-  if(!ans)return;
-  var idx=parseInt(ans)-1;
-  if(idx<0||idx>=cands.length||isNaN(idx)){alert('Choix invalide');return;}
-  if(!st.extras[grp])st.extras[grp]=[];
-  st.extras[grp].push(cands[idx].id);
+  cands.sort(function(a,b){return b._bestSc-a._bestSc;});
+  mflShowModal('Ajouter un remplaçant : '+grp,cands,null,null,grp);
+};
+
+// Modale d'affichage avec stats
+function mflShowModal(title,cands,slot,oldPlayerId,extraGrp){
+  var existing=document.getElementById('mfl-modal');if(existing)existing.remove();
+  var rows='';
+  if(cands.length===0){
+    rows='<tr><td colspan="13" style="color:#666;text-align:center;padding:14px">Aucun joueur natif disponible</td></tr>';
+  } else {
+    cands.slice(0,50).forEach(function(p){
+      var m=p.metadata,sc=slot?calcScore(p,slot):p._bestSc;
+      var targetSlot=slot||p._bestSlot;
+      var ry=m.retirementYears;
+      var ret='';
+      if(ry===1)ret=' <span style="color:#ff3333">⏳1</span>';
+      else if(ry===2)ret=' <span style="color:#ff9900">⏳2</span>';
+      else if(ry===3)ret=' <span style="color:#e2b714">⏳3</span>';
+      var fam=getFam(p,targetSlot);
+      var famC={PRIMARY:'#3af24b',SECONDARY:'#FFCC00',FAIRLY_FAMILIAR:'#ff9900',SOMEWHAT_FAMILIAR:'#ff5500',UNFAMILIAR:'#666'}[fam]||'#666';
+      rows+='<tr style="cursor:pointer" onclick="mflPickFromModal('+p.id+',\''+targetSlot+'\','+(oldPlayerId||'null')+',\''+(extraGrp||'').replace(/\\\\/g,"\\\\\\\\").replace(/'/g,"\\x27")+'\')">'+
+        '<td><span class="pp" style="background:#1a1a2a;color:'+famC+';padding:1px 4px;border-radius:3px;font-size:9px">'+(m.positions||['?'])[0]+'</span></td>'+
+        '<td style="color:#ccc">'+(m.firstName||'')+' '+(m.lastName||'?')+ret+'</td>'+
+        '<td style="font-size:9px;color:#666">'+(m.positions||[]).join('/')+'</td>'+
+        '<td class="stnum" style="color:'+oc(m.pace||0)+'">'+(m.pace||0)+'</td>'+
+        '<td class="stnum" style="color:'+oc(m.shooting||0)+'">'+(m.shooting||0)+'</td>'+
+        '<td class="stnum" style="color:'+oc(m.passing||0)+'">'+(m.passing||0)+'</td>'+
+        '<td class="stnum" style="color:'+oc(m.dribbling||0)+'">'+(m.dribbling||0)+'</td>'+
+        '<td class="stnum" style="color:'+oc(m.defense||0)+'">'+(m.defense||0)+'</td>'+
+        '<td class="stnum" style="color:'+oc(m.physical||0)+'">'+(m.physical||0)+'</td>'+
+        '<td class="stnum">'+(m.age||'?')+'</td>'+
+        '<td class="stnum" style="color:'+oc(m.overall||0)+'">'+m.overall+'</td>'+
+        '<td class="stnum" style="color:'+oc(sc)+';font-weight:700">'+sc+'</td>'+
+        '<td><span style="font-size:9px;color:'+famC+'">'+fam.replace('_',' ')+'</span></td>'+
+        '</tr>';
+    });
+  }
+  var div=document.createElement('div');
+  div.id='mfl-modal';
+  div.onclick=function(e){if(e.target===div)div.remove();};
+  div.innerHTML='<div id="mfl-modal-c" style="position:relative">'+
+    '<span class="closeb" onclick="document.getElementById(\'mfl-modal\').remove()">✕</span>'+
+    '<h3>'+title+' ('+cands.length+' joueurs)</h3>'+
+    '<table><thead><tr>'+
+      '<th>Pos</th><th>Nom</th><th>Postes</th>'+
+      '<th>PAC</th><th>SHO</th><th>PAS</th><th>DRI</th><th>DEF</th><th>PHY</th>'+
+      '<th>Âge</th><th>OVR</th><th>Sc.</th><th>Fam.</th>'+
+    '</tr></thead><tbody>'+rows+'</tbody></table>'+
+    '<div style="text-align:right;margin-top:10px;font-size:11px;color:#666">Clique sur une ligne pour sélectionner</div>'+
+    '</div>';
+  document.body.appendChild(div);
+}
+
+// Sélection depuis la modale
+window.mflPickFromModal=function(newPid,slot,oldPlayerId,extraGrp){
+  var st=window._mflState;if(!st)return;
+  document.getElementById('mfl-modal').remove();
+  if(extraGrp){
+    // Ajout extra
+    if(!st.extras[extraGrp])st.extras[extraGrp]=[];
+    st.extras[extraGrp].push(newPid);
+  } else if(oldPlayerId){
+    // Remplacement direct
+    for(var i=0;i<st.starters.length;i++){
+      if(st.starters[i]&&st.starters[i].player.id===oldPlayerId&&st.starters[i].slotPos===slot){
+        var newP=st.avail.find(function(p){return p.id===newPid;});
+        var pos=newP.metadata.positions||[];
+        st.starters[i]={player:newP,pos:pos[0]||slot,slotPos:slot,sc:calcScore(newP,slot),fam:getFam(newP,slot)};
+        window.mflGen();
+        return;
+      }
+    }
+    Object.keys(st.bups).forEach(function(slotKey){
+      st.bups[slotKey]=st.bups[slotKey].filter(function(b){
+        if(b.player.id!==oldPlayerId)return true;
+        var newP=st.avail.find(function(p){return p.id===newPid;});
+        var pos=newP.metadata.positions||[];
+        st.bups[slotKey].push({player:newP,pos:pos[0]||slot,slotPos:slot,sc:calcScore(newP,slot),fam:getFam(newP,slot)});
+        return false;
+      });
+    });
+  } else {
+    // Slot vide: trouve le slot dans starters et le remplit
+    for(var i=0;i<st.starters.length;i++){
+      if(!st.starters[i]&&FORM[st.formation][i]===slot){
+        var newP=st.avail.find(function(p){return p.id===newPid;});
+        var pos=newP.metadata.positions||[];
+        st.starters[i]={player:newP,pos:pos[0]||slot,slotPos:slot,sc:calcScore(newP,slot),fam:getFam(newP,slot)};
+        break;
+      }
+    }
+  }
   window.mflGen();
 };
 
