@@ -194,63 +194,54 @@ function sortKey(pl,slot,young){
 }
 
 // ── Algorithme d'assignation ─────────────────────────────────
-// Logique stricte : un joueur est candidat UNIQUEMENT sur ses postes natifs
-// (positions[] de l'API). Si aucun joueur natif n'est dispo pour un slot,
-// le slot reste VIDE — on ne met JAMAIS un joueur hors de ses postes.
+// LOGIQUE SIMPLE:
+// 1. Pour chaque slot demandé dans la formation, dans l'ordre
+// 2. Cherche tous les joueurs RESTANTS qui ont CE poste dans positions[]
+// 3. Trie par score décroissant, prends le meilleur
+// 4. Slot vide si aucun joueur disponible
+// Avec un twist: on traite d'abord les slots "rares" (ceux qui ont peu de candidats)
+// pour ne pas griller un joueur unique sur un autre slot
 function doAssign(players,positions){
-  var n=positions.length,m=players.length;
-  // Pré-calcule la matrice score[si][pi]
-  var score=[];
-  for(var si=0;si<n;si++){
-    score[si]=[];
-    for(var pi=0;pi<m;pi++)score[si][pi]=calcScore(players[pi],positions[si]);
-  }
+  var n=positions.length;
   var asgn=new Array(n).fill(-1),used=new Set(),done=new Array(n).fill(false);
 
-  // Postes natifs uniquement: slot doit etre dans positions[] du joueur
-  function nativeSlotsFor(pi){
-    var out=[];
+  // Pour chaque slot, liste des candidats (joueurs ayant ce poste dans positions[])
+  function candidatesFor(si){
+    var slot=positions[si],out=[];
+    for(var pi=0;pi<players.length;pi++){
+      if(used.has(pi))continue;
+      if(!isNative(players[pi],slot))continue;
+      out.push({pi:pi,sc:calcScore(players[pi],slot)});
+    }
+    out.sort(function(a,b){return b.sc-a.sc;});
+    return out;
+  }
+
+  // Boucle: traite les slots dans l'ordre, mais priorité aux slots avec peu de candidats
+  for(var iter=0;iter<n;iter++){
+    var bestSi=-1,bestCount=999;
     for(var si=0;si<n;si++){
       if(done[si])continue;
-      if(!isNative(players[pi],positions[si]))continue;
-      out.push({si:si,sc:score[si][pi],fam:getFam(players[pi],positions[si])});
+      var cnt=candidatesFor(si).length;
+      if(cnt>0&&cnt<bestCount){bestCount=cnt;bestSi=si;}
     }
-    return out.sort(function(a,b){return b.sc-a.sc;});
+    // Si aucun slot n'a de candidat, on remplit dans l'ordre les slots restants (laisseront vides)
+    if(bestSi===-1){
+      for(var si=0;si<n;si++)if(!done[si]){done[si]=true;}
+      break;
+    }
+    var cands=candidatesFor(bestSi);
+    if(cands.length===0){done[bestSi]=true;continue;}
+    asgn[bestSi]=cands[0].pi;
+    used.add(cands[0].pi);
+    done[bestSi]=true;
   }
 
-  // Matching itératif : chaque joueur enchère sur son meilleur slot natif
-  var maxIter=n*m;
-  for(var iter=0;iter<maxIter;iter++){
-    var bids=[];
-    for(var pi=0;pi<m;pi++){
-      if(used.has(pi))continue;
-      var slots=nativeSlotsFor(pi);
-      if(slots.length>0)bids.push({pi:pi,si:slots[0].si,sc:slots[0].sc,fam:slots[0].fam});
-    }
-    if(bids.length===0)break;
-    // Pour chaque slot, conserve l'enchère gagnante (meilleur score, PRIMARY > SECONDARY à égalité)
-    var bySlot={};
-    bids.forEach(function(b){
-      var cur=bySlot[b.si];
-      if(!cur)bySlot[b.si]=b;
-      else if(b.sc>cur.sc)bySlot[b.si]=b;
-      else if(b.sc===cur.sc&&b.fam==='PRIMARY'&&cur.fam!=='PRIMARY')bySlot[b.si]=b;
-    });
-    var assigned=false;
-    Object.keys(bySlot).forEach(function(siStr){
-      var b=bySlot[siStr];
-      if(done[b.si]||used.has(b.pi))return;
-      asgn[b.si]=b.pi;used.add(b.pi);done[b.si]=true;assigned=true;
-    });
-    if(!assigned)break;
-  }
-
-  // Pas de fallback : les slots sans candidat natif restent VIDES (null)
   return asgn.map(function(pi,si){
     if(pi===-1)return null;
     var p=players[pi],slotPos=positions[si];
     var pos=p.metadata&&p.metadata.positions||[];
-    return{player:p,pos:pos[0]||slotPos,slotPos:slotPos,sc:score[si][pi],fam:getFam(p,slotPos)};
+    return{player:p,pos:pos[0]||slotPos,slotPos:slotPos,sc:calcScore(p,slotPos),fam:getFam(p,slotPos)};
   });
 }
 
@@ -280,26 +271,34 @@ function doBackups(players,usedIds,starters,formation){
   var positions=FORM[formation]||[];
   var remaining=players.filter(function(p){return!usedIds.has(p.id);});
 
-  // Groupes : GK (1 rem), DEF (2 rem), MID (2 rem), ATT (2 rem)
+  // Groupes : nombre de remplaçants = ~moitié des titulaires du groupe (min 1)
   var GROUPS={
-    GK:{slots:['GK','G'],max:1},
-    DEF:{slots:['CB','DC','LB','DG','RB','DD','LWB','DLG','RWB','DLD'],max:2},
-    MID:{slots:['CDM','MDC','CM','MC','LM','MG','RM','MD','CAM','MOC'],max:2},
-    ATT:{slots:['LW','AG','RW','AD','ST','BU','CF','AT'],max:2}
+    GK:{slots:['GK','G']},
+    DEF:{slots:['CB','DC','LB','DG','RB','DD','LWB','DLG','RWB','DLD']},
+    MID:{slots:['CDM','MDC','CM','MC','LM','MG','RM','MD','CAM','MOC']},
+    ATT:{slots:['LW','AG','RW','AD','ST','BU','CF','AT']}
   };
 
-  // Quels groupes sont représentés dans la formation?
-  var groupsInForm={};
+  // Compte les titulaires de chaque groupe pour déterminer la profondeur du banc
+  var titularsPerGroup={};
   positions.forEach(function(slot){
     Object.keys(GROUPS).forEach(function(gn){
-      if(GROUPS[gn].slots.indexOf(slot)>=0)groupsInForm[gn]=true;
+      if(GROUPS[gn].slots.indexOf(slot)>=0){
+        titularsPerGroup[gn]=(titularsPerGroup[gn]||0)+1;
+      }
     });
+  });
+  // Bench: max(1, ceil(titulaires/2)) - 1 GK, 2 def si 3-4 titulaires, etc.
+  Object.keys(GROUPS).forEach(function(gn){
+    var t=titularsPerGroup[gn]||0;
+    if(gn==='GK')GROUPS[gn].max=1;
+    else GROUPS[gn].max=Math.max(1,Math.ceil(t/2));
   });
 
   var result={},lu=new Set();
 
   Object.keys(GROUPS).forEach(function(gn){
-    if(!groupsInForm[gn])return;
+    if(!titularsPerGroup[gn])return;
     var grp=GROUPS[gn];
     var picked=[];
     // Pour chaque candidat restant, calcule son MEILLEUR slot natif dans ce groupe
