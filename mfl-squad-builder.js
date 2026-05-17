@@ -123,37 +123,53 @@ var FAM={
 var PEN={PRIMARY:0,SECONDARY:-1,FAIRLY_FAMILIAR:-5,SOMEWHAT_FAMILIAR:-8,UNFAMILIAR:-20};
 var FR={PRIMARY:4,SECONDARY:3,FAIRLY_FAMILIAR:2,SOMEWHAT_FAMILIAR:1,UNFAMILIAR:0};
 
-// Normalise vers le code unifié (API et matrice)
-// MFL utilise les codes API : DC, DG, DD, DLG, DLD, MDC, MC, MG, MD, MOC, AG, AD, BU, AT, G
-// Les positions[] du joueur et les slots de la formation sont déjà ces codes
-function normPos(p){
-  // Pour la MATRICE FAM, on utilise des codes anglais standardisés
-  var n={G:'GK',DC:'CB',DG:'LB',DD:'RB',DLG:'LWB',DLD:'RWB',MDC:'CDM',MC:'CM',MG:'LM',MD:'RM',MOC:'CAM',AG:'LW',AD:'RW',BU:'ST',AT:'CF'};
-  return n[p]||p;
+// Codes synonymes API/anglais. RWB et RB sont DIFFÉRENTS (postes distincts dans MFL).
+// Seuls les codes ci-dessous sont des synonymes (même poste, codage différent).
+var SYNO={
+  G:'GK',GK:'GK',
+  DC:'CB',CB:'CB',
+  DG:'LB',LB:'LB',
+  DD:'RB',RB:'RB',
+  DLG:'LWB',LWB:'LWB',
+  DLD:'RWB',RWB:'RWB',
+  MDC:'CDM',CDM:'CDM',
+  MC:'CM',CM:'CM',
+  MG:'LM',LM:'LM',
+  MD:'RM',RM:'RM',
+  MOC:'CAM',CAM:'CAM',
+  AG:'LW',LW:'LW',
+  AD:'RW',RW:'RW',
+  BU:'ST',ST:'ST',
+  AT:'CF',CF:'CF'
+};
+
+// isNative: TRUE si le slot est explicitement dans positions[] du joueur
+// (via codes synonymes API↔anglais). C'est le SEUL critère pour qu'un joueur
+// soit candidat à un slot.
+function isNative(pl,slot){
+  var pos=pl.metadata&&pl.metadata.positions||[];
+  var slotN=SYNO[slot]||slot;
+  for(var i=0;i<pos.length;i++){
+    if((SYNO[pos[i]]||pos[i])===slotN)return true;
+  }
+  return false;
 }
 
-// getPositionFamiliarity - logique corrigée:
-// 1. Compare codes EXACTS (positions API): si slot dans positions du joueur → PRIMARY/SECONDARY
-// 2. Sinon utilise la matrice FAM avec les codes normalisés (LB/LWB/RB/RWB distincts)
+// getFam: retourne la familiarité pour AFFICHAGE et CALCUL DE SCORE.
+// Indique la pénalité MFL même pour les positions non-natives (info indicative).
 function getFam(pl,slot){
   var pos=pl.metadata&&pl.metadata.positions||[];
   if(pos.length===0)return'UNFAMILIAR';
-  // Compare codes EXACTS d'abord
-  if(pos[0]===slot)return'PRIMARY';
-  if(pos.indexOf(slot)>=0)return'SECONDARY';
-  // Sinon matrice FAM avec codes normalisés (anglais)
-  var primaryNorm=normPos(pos[0]);
-  var slotNorm=normPos(slot);
-  // Si après normalisation c'est le même, c'est PRIMARY
-  // (cas où API utilise des codes différents pour le même poste)
-  if(primaryNorm===slotNorm)return'PRIMARY';
-  // Vérifie aussi pour SECONDARY (autres positions du joueur)
+  var slotN=SYNO[slot]||slot;
+  // PRIMARY: position[0] correspond au slot
+  if((SYNO[pos[0]]||pos[0])===slotN)return'PRIMARY';
+  // SECONDARY: position[1..] correspond au slot
   for(var i=1;i<pos.length;i++){
-    if(normPos(pos[i])===slotNorm)return'SECONDARY';
+    if((SYNO[pos[i]]||pos[i])===slotN)return'SECONDARY';
   }
-  // Fallback dans la matrice
-  var f=FAM[primaryNorm];
-  if(f&&f[slotNorm])return f[slotNorm];
+  // Non natif → matrice MFL pour la pénalité (FF/SF/UF)
+  var f=FAM[SYNO[pos[0]]||pos[0]];
+  if(f&&f[slotN])return f[slotN];
   return'UNFAMILIAR';
 }
 
@@ -191,13 +207,13 @@ function doAssign(players,positions){
   }
   var asgn=new Array(n).fill(-1),used=new Set(),done=new Array(n).fill(false);
 
-  // Postes natifs uniquement (PRIMARY ou SECONDARY)
+  // Postes natifs uniquement: slot doit etre dans positions[] du joueur
   function nativeSlotsFor(pi){
     var out=[];
     for(var si=0;si<n;si++){
       if(done[si])continue;
-      var fam=getFam(players[pi],positions[si]);
-      if(fam==='PRIMARY'||fam==='SECONDARY')out.push({si:si,sc:score[si][pi],fam:fam});
+      if(!isNative(players[pi],positions[si]))continue;
+      out.push({si:si,sc:score[si][pi],fam:getFam(players[pi],positions[si])});
     }
     return out.sort(function(a,b){return b.sc-a.sc;});
   }
@@ -292,11 +308,9 @@ function doBackups(players,usedIds,starters,formation){
       if(lu.has(p.id))return;
       var bestSlot=null,bestSc=-1,bestFam=null;
       grp.slots.forEach(function(slot){
-        var fam=getFam(p,slot);
-        if(fam==='PRIMARY'||fam==='SECONDARY'){
-          var sc=calcScore(p,slot);
-          if(sc>bestSc){bestSc=sc;bestSlot=slot;bestFam=fam;}
-        }
+        if(!isNative(p,slot))return;
+        var sc=calcScore(p,slot);
+        if(sc>bestSc){bestSc=sc;bestSlot=slot;bestFam=getFam(p,slot);}
       });
       if(bestSlot)cands.push({player:p,slot:bestSlot,sc:bestSc,fam:bestFam,age:(p.metadata&&p.metadata.age)||25});
     });
