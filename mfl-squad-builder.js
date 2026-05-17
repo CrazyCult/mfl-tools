@@ -5,35 +5,6 @@ var API='https://z519wdyajg.execute-api.us-east-1.amazonaws.com/prod';
 var MAX_E=10000;
 var TALL_POS={GK:1,G:1,CB:1,DC:1,ST:1,BU:1,LWB:1,DLG:1,RWB:1,DLD:1};
 
-// Pagination: l'API limite à 400 joueurs par appel. On boucle avec beforePlayerId
-// (cursor = id du dernier joueur récupéré, pour récupérer ceux avant)
-function fetchAllPlayers(wallet){
-  return new Promise(function(resolve){
-    var all=[],last=null,calls=0;
-    function next(){
-      calls++;
-      if(calls>10){console.warn('[MFL] Pagination stop à 10 appels');resolve(all);return;}
-      var url=API+'/players?ownerWalletAddress='+wallet+'&limit=400';
-      if(last)url+='&beforePlayerId='+last;
-      _of(url).then(function(r){return r.json();}).then(function(d){
-        var batch=Array.isArray(d)?d:(d.items||[]);
-        if(batch.length===0){resolve(all);return;}
-        // Évite les doublons
-        var ids={};all.forEach(function(p){ids[p.id]=1;});
-        var newOnes=batch.filter(function(p){return!ids[p.id];});
-        if(newOnes.length===0){resolve(all);return;}
-        all=all.concat(newOnes);
-        // Trouve le plus petit id de la page pour le prochain cursor
-        var minId=newOnes.reduce(function(m,p){return p.id<m?p.id:m;},newOnes[0].id);
-        last=minId;
-        console.log('[MFL] Pagination: '+all.length+' joueurs chargés (appel #'+calls+')');
-        if(newOnes.length<400){resolve(all);return;}
-        next();
-      }).catch(function(e){console.warn('[MFL] Pagination err:',e);resolve(all);});
-    }
-    next();
-  });
-}
 
 // Club ID depuis URL
 var cm=location.href.match(/\/clubs\/(\d+)/);
@@ -54,6 +25,35 @@ var t0=findTok(); window._MT=t0?('Bearer '+t0):null;
 var _of=window.fetch;
 window.fetch=function(){var url=arguments[0],opts=arguments[1];if(typeof url==='string'&&url.indexOf('z519wdyajg')>=0){var auth=opts&&opts.headers&&(opts.headers.authorization||opts.headers.Authorization);if(auth&&auth.indexOf('Bearer ')===0)window._MT=auth;}return _of.apply(this,arguments);};
 function getW(){if(window._MT){try{var p=JSON.parse(atob(window._MT.replace('Bearer ','').split('.')[1]));if(p.sub)return p.sub;}catch(e){}}var ee=performance.getEntriesByType('resource');for(var i=0;i<ee.length;i++){var m=ee[i].name.match(/[Ww]alletAddress=(0x[0-9a-f]{16})/i);if(m)return m[1];}for(var k in localStorage){var mv=(localStorage.getItem(k)||'').match(/0x[0-9a-f]{16}/i);if(mv)return mv[0];}return null;}
+
+// Pagination: l'API MFL limite à ~400 joueurs/appel. On pagine via beforePlayerId
+// (cursor = id du dernier joueur de la page précédente)
+function fetchAllPlayers(wallet){
+  return new Promise(function(resolve){
+    var all=[],lastId=null,calls=0;
+    function next(){
+      calls++;
+      if(calls>15){console.warn('[MFL] Pagination stop à 15 appels');resolve(all);return;}
+      var url=API+'/players?ownerWalletAddress='+wallet+'&limit=400';
+      if(lastId)url+='&beforePlayerId='+lastId;
+      _of(url).then(function(r){return r.json();}).then(function(d){
+        var batch=Array.isArray(d)?d:(d.items||[]);
+        if(batch.length===0){resolve(all);return;}
+        var ids={};all.forEach(function(p){ids[p.id]=1;});
+        var newOnes=batch.filter(function(p){return!ids[p.id];});
+        if(newOnes.length===0){resolve(all);return;}
+        all=all.concat(newOnes);
+        // Le dernier id de la page (le plus petit) sert de cursor pour la suite
+        lastId=batch[batch.length-1].id;
+        console.log('[MFL] Pagination: '+all.length+' joueurs chargés (appel #'+calls+')');
+        if(newOnes.length<400){resolve(all);return;}
+        next();
+      }).catch(function(e){console.warn('[MFL] Pagination err:',e);resolve(all);});
+    }
+    next();
+  });
+}
+
 
 // ── Formations ───────────────────────────────────────────────
 var FORM={
