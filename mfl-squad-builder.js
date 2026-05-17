@@ -194,47 +194,39 @@ function sortKey(pl,slot,young){
 }
 
 // ── Algorithme d'assignation ─────────────────────────────────
-// LOGIQUE SIMPLE:
-// 1. Pour chaque slot demandé dans la formation, dans l'ordre
-// 2. Cherche tous les joueurs RESTANTS qui ont CE poste dans positions[]
-// 3. Trie par score décroissant, prends le meilleur
-// 4. Slot vide si aucun joueur disponible
-// Avec un twist: on traite d'abord les slots "rares" (ceux qui ont peu de candidats)
-// pour ne pas griller un joueur unique sur un autre slot
+// LOGIQUE:
+// Pour chaque joueur, on calcule son score sur CHACUN de ses postes natifs (positions[]).
+// On choisit gloutonnement la paire (joueur, slot) ayant le score le PLUS ÉLEVÉ.
+// Ainsi Yates (MDC/MC/DC) ira en DC si son score y est plus haut qu'en MDC.
 function doAssign(players,positions){
-  var n=positions.length;
+  var n=positions.length,m=players.length;
   var asgn=new Array(n).fill(-1),used=new Set(),done=new Array(n).fill(false);
 
-  // Pour chaque slot, liste des candidats (joueurs ayant ce poste dans positions[])
-  function candidatesFor(si){
-    var slot=positions[si],out=[];
-    for(var pi=0;pi<players.length;pi++){
+  // Construit toutes les paires possibles (player, slot) où slot est dans positions[] du joueur
+  // avec leur score calculé
+  function allPairs(){
+    var pairs=[];
+    for(var pi=0;pi<m;pi++){
       if(used.has(pi))continue;
-      if(!isNative(players[pi],slot))continue;
-      out.push({pi:pi,sc:calcScore(players[pi],slot)});
+      for(var si=0;si<n;si++){
+        if(done[si])continue;
+        if(!isNative(players[pi],positions[si]))continue;
+        pairs.push({pi:pi,si:si,sc:calcScore(players[pi],positions[si])});
+      }
     }
-    out.sort(function(a,b){return b.sc-a.sc;});
-    return out;
+    pairs.sort(function(a,b){return b.sc-a.sc;});
+    return pairs;
   }
 
-  // Boucle: traite les slots dans l'ordre, mais priorité aux slots avec peu de candidats
-  for(var iter=0;iter<n;iter++){
-    var bestSi=-1,bestCount=999;
-    for(var si=0;si<n;si++){
-      if(done[si])continue;
-      var cnt=candidatesFor(si).length;
-      if(cnt>0&&cnt<bestCount){bestCount=cnt;bestSi=si;}
-    }
-    // Si aucun slot n'a de candidat, on remplit dans l'ordre les slots restants (laisseront vides)
-    if(bestSi===-1){
-      for(var si=0;si<n;si++)if(!done[si]){done[si]=true;}
-      break;
-    }
-    var cands=candidatesFor(bestSi);
-    if(cands.length===0){done[bestSi]=true;continue;}
-    asgn[bestSi]=cands[0].pi;
-    used.add(cands[0].pi);
-    done[bestSi]=true;
+  // Boucle: prend la meilleure paire (score le plus haut),
+  // assigne, puis recommence avec les joueurs et slots restants
+  while(true){
+    var pairs=allPairs();
+    if(pairs.length===0)break;
+    var best=pairs[0];
+    asgn[best.si]=best.pi;
+    used.add(best.pi);
+    done[best.si]=true;
   }
 
   return asgn.map(function(pi,si){
