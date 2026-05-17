@@ -123,15 +123,37 @@ var FAM={
 var PEN={PRIMARY:0,SECONDARY:-1,FAIRLY_FAMILIAR:-5,SOMEWHAT_FAMILIAR:-8,UNFAMILIAR:-20};
 var FR={PRIMARY:4,SECONDARY:3,FAIRLY_FAMILIAR:2,SOMEWHAT_FAMILIAR:1,UNFAMILIAR:0};
 
-// getPositionFamiliarity — identique à players.js
+// Normalise vers le code unifié (API et matrice)
+// MFL utilise les codes API : DC, DG, DD, DLG, DLD, MDC, MC, MG, MD, MOC, AG, AD, BU, AT, G
+// Les positions[] du joueur et les slots de la formation sont déjà ces codes
+function normPos(p){
+  // Pour la MATRICE FAM, on utilise des codes anglais standardisés
+  var n={G:'GK',DC:'CB',DG:'LB',DD:'RB',DLG:'LWB',DLD:'RWB',MDC:'CDM',MC:'CM',MG:'LM',MD:'RM',MOC:'CAM',AG:'LW',AD:'RW',BU:'ST',AT:'CF'};
+  return n[p]||p;
+}
+
+// getPositionFamiliarity - logique corrigée:
+// 1. Compare codes EXACTS (positions API): si slot dans positions du joueur → PRIMARY/SECONDARY
+// 2. Sinon utilise la matrice FAM avec les codes normalisés (LB/LWB/RB/RWB distincts)
 function getFam(pl,slot){
   var pos=pl.metadata&&pl.metadata.positions||[];
-  var conv=pos.map(function(p){return TOM[p]||p;});
-  var t=TOM[slot]||slot;
-  if(conv[0]===t)return'PRIMARY';
-  if(conv.indexOf(t)>=0)return'SECONDARY';
-  var f=FAM[conv[0]];
-  if(f&&f[t])return f[t];
+  if(pos.length===0)return'UNFAMILIAR';
+  // Compare codes EXACTS d'abord
+  if(pos[0]===slot)return'PRIMARY';
+  if(pos.indexOf(slot)>=0)return'SECONDARY';
+  // Sinon matrice FAM avec codes normalisés (anglais)
+  var primaryNorm=normPos(pos[0]);
+  var slotNorm=normPos(slot);
+  // Si après normalisation c'est le même, c'est PRIMARY
+  // (cas où API utilise des codes différents pour le même poste)
+  if(primaryNorm===slotNorm)return'PRIMARY';
+  // Vérifie aussi pour SECONDARY (autres positions du joueur)
+  for(var i=1;i<pos.length;i++){
+    if(normPos(pos[i])===slotNorm)return'SECONDARY';
+  }
+  // Fallback dans la matrice
+  var f=FAM[primaryNorm];
+  if(f&&f[slotNorm])return f[slotNorm];
   return'UNFAMILIAR';
 }
 
@@ -236,62 +258,58 @@ function suggestFormation(players){
 }
 
 // ── Remplaçants ──────────────────────────────────────────────
-// Comme doAssign: UNIQUEMENT des joueurs natifs (PRIMARY/SECONDARY) au poste
+// Pour chaque groupe (GK / DEF / MID / ATT), prend les meilleurs joueurs natifs restants
+// pour permettre des rotations. Limite par groupe pour ne pas doubler tous les postes.
 function doBackups(players,usedIds,starters,formation){
-  var slots=SLOTS[formation]||{},frmPos=FORM[formation]||[];
+  var positions=FORM[formation]||[];
   var remaining=players.filter(function(p){return!usedIds.has(p.id);});
-  var result={},lu=new Set();
-  var saByPos={};
-  starters.filter(Boolean).forEach(function(s){if(!saByPos[s.slotPos])saByPos[s.slotPos]=[];saByPos[s.slotPos].push(s.player.metadata&&s.player.metadata.age||25);});
 
-  // Polyvalent LB/RB ou DG/DD : joueur natif sur AU MOINS un des deux postes
-  var polyKey=Object.keys(slots).filter(function(k){return k==='DGDD'||k==='LBRB';})[0];
-  if(polyKey){
-    var p1=polyKey==='DGDD'?'DG':'LB',p2=polyKey==='DGDD'?'DD':'RB';
-    var polyCands=remaining.filter(function(p){
-      if(lu.has(p.id))return false;
-      var f1=getFam(p,p1),f2=getFam(p,p2);
-      return f1==='PRIMARY'||f1==='SECONDARY'||f2==='PRIMARY'||f2==='SECONDARY';
-    });
-    var best=polyCands.sort(function(a,b){
-      return(calcScore(b,p1)+calcScore(b,p2))-(calcScore(a,p1)+calcScore(a,p2));
-    })[0];
-    if(best){
-      var pos=best.metadata&&best.metadata.positions||[];
-      result[polyKey]=[{player:best,pos:pos[0]||p1,slotPos:p1+'/'+p2,sc:Math.round((calcScore(best,p1)+calcScore(best,p2))/2),fam:getFam(best,p1),posKey:p1}];
-      lu.add(best.id);
-    }
-  }
+  // Groupes : GK (1 rem), DEF (2 rem), MID (2 rem), ATT (2 rem)
+  var GROUPS={
+    GK:{slots:['GK','G'],max:1},
+    DEF:{slots:['CB','DC','LB','DG','RB','DD','LWB','DLG','RWB','DLD'],max:2},
+    MID:{slots:['CDM','MDC','CM','MC','LM','MG','RM','MD','CAM','MOC'],max:2},
+    ATT:{slots:['LW','AG','RW','AD','ST','BU','CF','AT'],max:2}
+  };
 
-  Object.keys(slots).forEach(function(posKey){
-    if(posKey==='DGDD'||posKey==='LBRB')return;
-    var total=slots[posKey],titCount=frmPos.filter(function(p){return p===posKey;}).length,bc=total-titCount;
-    if(bc<=0)return;
-    var sa=saByPos[posKey]||[];
-    // STRICT: uniquement joueurs natifs au poste
-    var natives=remaining.filter(function(p){
-      if(lu.has(p.id))return false;
-      var fam=getFam(p,posKey);
-      return fam==='PRIMARY'||fam==='SECONDARY';
+  // Quels groupes sont représentés dans la formation?
+  var groupsInForm={};
+  positions.forEach(function(slot){
+    Object.keys(GROUPS).forEach(function(gn){
+      if(GROUPS[gn].slots.indexOf(slot)>=0)groupsInForm[gn]=true;
     });
-    var sorted=natives.sort(function(a,b){
-      return sortKey(b,posKey,false)-sortKey(a,posKey,false);
-    });
-    var cands=[],fb=[];
-    sorted.forEach(function(p){
-      var age=p.metadata&&p.metadata.age||25;
-      (sa.some(function(s){return Math.abs(s-age)<3;})?fb:cands).push(p);
-    });
-    while(cands.length<bc&&fb.length)cands.push(fb.shift());
-    var picked=cands.slice(0,bc);
-    if(picked.length){
-      result[posKey]=picked.map(function(p){
-        var pos=p.metadata&&p.metadata.positions||[];
-        return{player:p,pos:pos[0]||posKey,slotPos:posKey,sc:calcScore(p,posKey),fam:getFam(p,posKey)};
-      });
-      picked.forEach(function(c){lu.add(c.id);});
-    }
   });
+
+  var result={},lu=new Set();
+
+  Object.keys(GROUPS).forEach(function(gn){
+    if(!groupsInForm[gn])return;
+    var grp=GROUPS[gn];
+    var picked=[];
+    // Pour chaque candidat restant, calcule son MEILLEUR slot natif dans ce groupe
+    var cands=[];
+    remaining.forEach(function(p){
+      if(lu.has(p.id))return;
+      var bestSlot=null,bestSc=-1,bestFam=null;
+      grp.slots.forEach(function(slot){
+        var fam=getFam(p,slot);
+        if(fam==='PRIMARY'||fam==='SECONDARY'){
+          var sc=calcScore(p,slot);
+          if(sc>bestSc){bestSc=sc;bestSlot=slot;bestFam=fam;}
+        }
+      });
+      if(bestSlot)cands.push({player:p,slot:bestSlot,sc:bestSc,fam:bestFam,age:(p.metadata&&p.metadata.age)||25});
+    });
+    // Tri: score décroissant puis âge croissant
+    cands.sort(function(a,b){if(b.sc!==a.sc)return b.sc-a.sc;return a.age-b.age;});
+    cands.slice(0,grp.max).forEach(function(c){
+      var pos=c.player.metadata&&c.player.metadata.positions||[];
+      if(!result[c.slot])result[c.slot]=[];
+      result[c.slot].push({player:c.player,pos:pos[0]||c.slot,slotPos:c.slot,sc:c.sc,fam:c.fam});
+      lu.add(c.player.id);
+    });
+  });
+
   return result;
 }
 
@@ -429,7 +447,9 @@ window.mflGen=function(){
       if(exclRet&&p.metadata&&p.metadata.retirementYears!==undefined&&p.metadata.retirementYears<=1)return false;
       return true;
     });
-    document.getElementById('mfl-st').textContent=allP.length+' joueurs / '+avail.length+' dispo / '+signedIds.size+' signés / Club '+clubId+(window._MT?' / 🔑 Token OK':' / ⚠️ Pas de token');
+    var baseStatus=allP.length+' joueurs / '+avail.length+' dispo / '+signedIds.size+' signés / Club '+clubId+(window._MT?' / 🔑 Token OK':' / ⚠️ Pas de token');
+    document.getElementById('mfl-st').textContent=window._mflSuggestMsg||baseStatus;
+    window._mflSuggestMsg=null;
     if(avail.length<11){bd.innerHTML='<div style="padding:10px 12px;color:#ff5555">Seulement '+avail.length+' joueurs dispo — élargis OVR</div>';return;}
 
     var positions=FORM[formation];
@@ -550,15 +570,20 @@ window.mflSuggest=function(){
     });
     var top5=results.slice(0,5);
     var best=top5[0];
-    // Sélectionne la meilleure dans le dropdown et génère
+    // Sélectionne la meilleure dans le dropdown et flash-highlight
     var sel=document.getElementById('mfl-form');
     for(var i=0;i<sel.options.length;i++){
       if(sel.options[i].value===best.name||sel.options[i].text===best.name){
         sel.selectedIndex=i;break;
       }
     }
-    var msg='🎯 Top 5 formations: ';
-    msg+=top5.map(function(r){return r.name+'('+r.filled+'/11,~'+r.avg+')';}).join(' / ');
+    // Mémorise le message pour qu'il survive à mflGen
+    var msg='🎯 Choisi: '+best.name+' ('+best.filled+'/11 natifs, sc~'+best.avg+') | Top5: '+
+      top5.slice(1).map(function(r){return r.name+'('+r.filled+'/'+r.avg+')';}).join(' / ');
+    window._mflSuggestMsg=msg;
+    // Flash visuel sur le select
+    sel.style.boxShadow='0 0 8px #e2b714';sel.style.borderColor='#e2b714';
+    setTimeout(function(){sel.style.boxShadow='';sel.style.borderColor='';},1500);
     document.getElementById('mfl-st').textContent=msg;
     window.mflGen();
   }).catch(function(e){document.getElementById('mfl-st').textContent='Erreur: '+e.message;console.error('[MFL]',e);});
